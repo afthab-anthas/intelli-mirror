@@ -1,15 +1,6 @@
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
-
-# Load your API key from the .env file
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-print("Available Models for Text Generation:")
-print("-------------------------------------")
-
-# Ask the API for a list of all models
-for m in genai.list_models():
-    if 'generateContent' in m.supported_generation_methods:
-        print(m.name)
+import pyttsx3
+engine = pyttsx3.init()
+print("Attempting to speak...")
+engine.say("Testing the audio engine. Can you hear me, Afthab?")
+engine.runAndWait()
+print("Finished.")
