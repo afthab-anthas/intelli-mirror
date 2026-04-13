@@ -1,0 +1,17 @@
+# Secrets and API Keys
+.env
+credentials.json
+token.json
+.cache
+
+# User Profiles (if using multi-user architecture)
+profiles/
+
+# Python Cache & Virtual Environments
+__pycache__/
+*.pyc
+venv/
+env/
+
+# OS Files
+.DS_Store

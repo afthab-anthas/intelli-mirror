@@ -38,7 +38,7 @@ def audio_callback(recognizer, audio):
             
             if command_in_same_breath:
                 # They said it all in one breath!
-                print(f">>> You said: '{command_in_same_breath}'")
+                print(f">>> You said: '{command_in_same_breath}'") 
                 print("====================\n")
             else:
                 # They paused. Let's change our state so we treat the NEXT audio chunk as the command.
