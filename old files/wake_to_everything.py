@@ -122,7 +122,7 @@ def process_calendar_intent(json_data):
     intent = json_data.get("intent")
     
     if intent == "read":
-        now = datetime.datetime.utcnow().isoformat() + 'Z' 
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z") 
         # Fetch 15 events just in case birthdays are clogging up the top slots
         events_result = service.events().list(calendarId='primary', timeMin=now,
                                               maxResults=15, singleEvents=True,
@@ -195,7 +195,7 @@ def process_calendar_intent(json_data):
             speech_queue.put("I didn't catch the name of the event to delete.")
             return
             
-        now = datetime.datetime.utcnow().isoformat() + 'Z'
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
         try:
             # Search for the event first
             events_result = service.events().list(calendarId='primary', q=summary, timeMin=now,
@@ -298,6 +298,16 @@ def ask_gemini(text_query):
     """Routes transcribed text to Spotify, Calendar AI, or General Conversational AI."""
     query_lower = text_query.lower()
     
+    # --- DYNAMIC SYSTEM CONTEXT ---
+    # This establishes the exact time, date, and location the moment you speak
+    now = datetime.datetime.now()
+    current_time = now.strftime("%I:%M %p")
+    current_date = now.strftime("%A, %B %d, %Y")
+    current_date_iso = now.strftime("%Y-%m-%d")
+    location = "Dubai, United Arab Emirates"
+    
+    system_awareness = f"SYSTEM AWARENESS: The current time is {current_time}. Today's date is {current_date} ({current_date_iso}). You are physically located in {location}.\n"
+    
     # ⚡ ROUTE 1: SPOTIFY INTERCEPT ⚡
     music_keywords = ["spotify", "music", "song", "track", "play", "pause", "skip", "next"]
     if any(keyword in query_lower for keyword in music_keywords):
@@ -347,11 +357,8 @@ def ask_gemini(text_query):
     if any(keyword in query_lower for keyword in calendar_keywords):
         print(f"\n[📅 Routing to Calendar AI...]")
         try:
-            current_time = datetime.datetime.now().strftime("%A, %B %d, %Y at %I:%M %p")
-            current_date_iso = datetime.datetime.now().strftime("%Y-%m-%d")
-            
-            instructions = f"""You are a strict JSON conversion engine navigating a Google Calendar.
-The current real-world time is {current_time}. Today's date is {current_date_iso}.
+            instructions = f"""{system_awareness}
+You are a strict JSON conversion engine navigating a Google Calendar.
 If the user wants to ADD a calendar event, alert, or reminder, calculate the exact requested time and output ONLY raw JSON matching this schema:
 {{"intent": "add", "summary": "<Brief title>", "date": "YYYY-MM-DD", "time": "HH:MM:00"}}
 If the user wants to DELETE, CANCEL, or REMOVE a calendar event, output ONLY raw JSON:
@@ -384,7 +391,8 @@ Return ONLY raw JSON. No markdown formatting. No conversational text."""
     if any(keyword in query_lower for keyword in todo_keywords):
         print(f"\n[📝 Routing to To-Do AI...]")
         try:
-            instructions = f"""You are a strict JSON conversion engine managing a simple to-do list.
+            instructions = f"""{system_awareness}
+You are a strict JSON conversion engine managing a simple to-do list.
 If the user wants to ADD a task or item, output ONLY raw JSON:
 {{"intent": "add", "task": "<Task name>"}}
 If the user wants to DELETE, REMOVE, or COMPLETE a task, output ONLY raw JSON:
@@ -417,7 +425,9 @@ Return ONLY raw JSON. No markdown formatting."""
     # 🧠 ROUTE 3: REGULAR CONVERSATIONAL AI 🧠
     print(f"\n[🧠 Routing to General AI...]")
     try:
-        instructions = "You are an intelligent, concise smart mirror assistant. Keep responses brief and conversational (1-2 sentences). Do not use lists or bullet points. Act like a helpful AI."
+        instructions = f"""{system_awareness}
+You are an intelligent, concise smart mirror assistant. Keep responses brief and conversational (1-2 sentences). Do not use lists or bullet points. Act like a helpful AI."""
+        
         combined_prompt = f"{instructions}\n\nThe user says: {text_query}"
         
         response = client.models.generate_content(
@@ -435,7 +445,6 @@ Return ONLY raw JSON. No markdown formatting."""
     except Exception as e:
         print(f"Failed to communicate with AI: {e}")
         speech_queue.put("I'm sorry, I am having trouble connecting to my brain right now.")
-
 # --- BACKGROUND LISTENER CORE ---
 def audio_callback(recognizer, audio):
     global listening_for_command

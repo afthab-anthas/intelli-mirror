@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Mirror - Pro Portrait UI</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+</head>
+
+<body>
+
+  <div id="camera-dot"></div>
+
+  <div id="clock" class="draggable">
+    <div id="time">--:--</div>
+    <div id="date">--</div>
+  </div>
+
+  <div id="main-container">
+    <div class="card draggable" id="ai-assistant">
+      <h3><i class="fas fa-brain icon-ai"></i> AI Assistant</h3>
+      <p>Hi, <span id="username">Guest</span>!</p>
+      <p id="ai-text">Ready for your command.</p>
+    </div>
+
+    <div class="card draggable" id="calendar">
+      <div class="calendar-header">
+        <span id="cal-month-title">Month</span>
+      </div>
+      <div class="calendar-weekdays">
+        <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+      </div>
+      <div id="calendar-grid"></div>
+    </div>
+
+    <div class="card draggable" id="todo">
+      <h3><i class="fas fa-list-ul icon-todo"></i> Daily Notes</h3>
+      <ul id="todo-list">
+        <li class="note-item">
+          <span class="note-text"><i class="fa-regular fa-circle"></i> Syncing...</span>
+        </li>
+      </ul>
+      <input type="text" id="note-input" placeholder="+ Add a note...">
+    </div>
+
+    <div class="card draggable" id="weather">
+      <h3><i class="fas fa-sun icon-weather"></i> Weather</h3>
+      <div class="weather-info"><span id="temp">--°C</span>
+        <p>Dubai, UAE</p>
+      </div>
+    </div>
+
+    <div class="card draggable" id="spotify">
+      <div class="spotify-header">
+        <i class="fab fa-spotify icon-spotify"></i> <span>Spotify</span>
+      </div>
+      <div class="spotify-content">
+        <img id="album-art" src="https://misc.scdn.co/liked-songs/liked-songs-300.png" alt="Album Art">
+        <div class="track-info">
+          <p id="song-name">Not Playing</p>
+          <p id="artist-name">--</p>
+        </div>
+      </div>
+      <div class="progress-container">
+        <div class="playback-bar">
+          <div class="progress" id="spotify-progress"></div>
+        </div>
+        <div class="time-info">
+          <span id="progress-time">0:00</span>
+          <span id="total-time">0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="voice-interface">
+    <div class="waveform" id="waveform">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <p id="ai-status-text">Say "Hey Mirror"</p>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+
+</html>
