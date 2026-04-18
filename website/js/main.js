@@ -46,12 +46,21 @@ function createNote(text) {
   const li = document.createElement('li'); li.className = 'note-item';
   li.innerHTML = `<span class="note-text"><i class="fa-regular fa-circle"></i> ${text}</span><i class="fas fa-trash delete-btn"></i>`;
   li.querySelector('.note-text').onclick = () => li.classList.toggle('completed');
-  li.querySelector('.delete-btn').onclick = () => li.remove();
+  li.querySelector('.delete-btn').onclick = () => {
+    li.remove();
+    if (window.socket && window.socket.readyState === WebSocket.OPEN) {
+      window.socket.send(JSON.stringify({ type: "todo_delete", task: text }));
+    }
+  };
   return li;
 }
 document.getElementById('note-input').onkeypress = (e) => {
   if (e.key === 'Enter' && e.target.value.trim()) {
-    document.getElementById('todo-list').appendChild(createNote(e.target.value.trim())); e.target.value = '';
+    const task = e.target.value.trim();
+    document.getElementById('todo-list').appendChild(createNote(task)); e.target.value = '';
+    if (window.socket && window.socket.readyState === WebSocket.OPEN) {
+      window.socket.send(JSON.stringify({ type: "todo_add", task: task }));
+    }
   }
 };
 
@@ -104,9 +113,9 @@ function renderStaticCalendar() {
 renderStaticCalendar(); setInterval(renderStaticCalendar, 3600000);
 
 // 7. WebSocket Integration
-const socket = new WebSocket("ws://127.0.0.1:8765");
-socket.onopen = () => console.log("Connected to Python Backend!");
-socket.onmessage = (event) => {
+window.socket = new WebSocket("ws://127.0.0.1:8765");
+window.socket.onopen = () => console.log("Connected to Python Backend!");
+window.socket.onmessage = (event) => {
   const d = JSON.parse(event.data);
   if (d.temp) document.getElementById("temp").textContent = d.temp;
   if (d.ai_state) setAIState(d.ai_state);

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Mirror OS</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Ambient Background Animation -->
+    <div class="background-animation"></div>
+
+    <!-- STARTUP SCREEN: PROFILE SELECTION -->
+    <div id="startup-screen" class="startup-overlay">
+        <h1 class="startup-title">Who is looking in the mirror?</h1>
+        <div class="profiles-container">
+            <div class="profile-card" onclick="selectProfile('Pavan')">
+                <div class="avatar pavan-avatar">P</div>
+                <h3 class="profile-name">Pavan</h3>
+            </div>
+            <div class="profile-card" onclick="selectProfile('Guest')">
+                <div class="avatar guest-avatar"><i class="fa-solid fa-user"></i></div>
+                <h3 class="profile-name">Guest</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN OS INTERFACE -->
+    <div class="mirror-container" id="os-interface" style="display: none;">
+        
+        <!-- TOP CONTROLS -->
+        <div class="top-bar">
+            <!-- Edit Mode Button -->
+            <button id="edit-layout-btn" class="icon-btn" onclick="toggleEditMode()" title="Edit Layout">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            
+            <div class="top-center">
+                <div class="camera-indicator">
+                    <i class="fa-solid fa-circle"></i> Camera
+                </div>
+                <div class="time-date-panel glass-panel">
+                    <h1 class="clock" id="clock">7:33 PM</h1>
+                    <h3 class="date" id="date">28 - 03 - 2026</h3>
+                </div>
+            </div>
+
+            <!-- Active User Display & Logout -->
+            <div class="user-status" onclick="logout()" title="Switch Profile">
+                <i class="fa-solid fa-user-circle"></i> <span id="current-user-name">Pavan</span>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            
+            <!-- LEFT DROP ZONE -->
+            <div class="column left-col" id="col-left">
+                <!-- TO-DO LIST PANEL -->
+                <div class="glass-panel interactive widget" id="widget-todo" draggable="false">
+                    <div class="widget-drag-handle"><i class="fa-solid fa-grip"></i> Drag to move</div>
+                    <h2 class="panel-title">TO-DO LIST</h2>
+                    
+                    <div class="calendar-header" id="calendar-header">
+                        <!-- Javascript will dynamically build and highlight the days here -->
+                    </div>
+                    
+                    <ul class="todo-items" id="todo-list-container">
+                        <!-- Javascript will render tasks here based on the current day profile state -->
+                    </ul>
+                </div>
+
+                <!-- DEVICE PANEL -->
+                <div class="glass-panel interactive widget" id="widget-devices" draggable="false">
+                    <div class="widget-drag-handle"><i class="fa-solid fa-grip"></i> Drag to move</div>
+                    <h2 class="panel-title">Device Panel</h2>
+                    <div class="device-list">
+                        <div class="device-item active">
+                            <i class="fa-solid fa-lightbulb"></i>
+                            <span class="device-name">Lights</span>
+                            <span class="status">ON</span>
+                        </div>
+                        <div class="device-item">
+                            <i class="fa-solid fa-speaker-deck"></i>
+                            <span class="device-name">JBL</span>
+                            <span class="status">OFF</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT DROP ZONE -->
+            <div class="column right-col" id="col-right">
+                <!-- AI GREETING PANEL -->
+                <div class="glass-panel greeting-panel interactive widget" id="widget-ai" draggable="false">
+                    <div class="widget-drag-handle"><i class="fa-solid fa-grip"></i> Drag to move</div>
+                    <div class="ai-badge"><i class="fa-solid fa-robot"></i> Llama 3.2</div>
+                    <h1 class="greeting-text" id="ai-greeting">Hi Pavan!</h1>
+                    
+                    <!-- NEW AI/VOICE COMMAND INPUT -->
+                    <div class="ai-command-box">
+                        <button id="mic-btn" onclick="toggleVoiceListening()" title="Voice Command">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        <input type="text" id="ai-text-input" placeholder='e.g. "Add gym to Monday"'>
+                        <button id="send-cmd-btn" onclick="submitAICommand()" title="Send Command">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- NOW PLAYING PANEL -->
+                <div class="glass-panel spotify-panel interactive widget" id="widget-spotify" draggable="false">
+                    <div class="widget-drag-handle"><i class="fa-solid fa-grip"></i> Drag to move</div>
+                    <div class="spotify-header">
+                        <span class="now-playing">Now Playing...</span>
+                        <i class="fa-brands fa-spotify spotify-icon"></i>
+                    </div>
+                    <div class="track-info">
+                        <div class="album-art">
+                            <i class="fa-solid fa-music"></i>
+                        </div>
+                        <div class="track-details">
+                            <h3 class="track-name">Midnight Vibes</h3>
+                            <p class="track-artist">Lofi Girl</p>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- AI Loading/Processing Overlay -->
+    <div id="ai-processing-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Ollama is analyzing...</p>
+    </div>
+
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <script src="script.js"></script>
+</body>
+</html>
