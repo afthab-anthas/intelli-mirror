@@ -1,0 +1,629 @@
+import warnings
+import urllib3
+warnings.filterwarnings("ignore", category=FutureWarning)
+urllib3.disable_warnings(urllib3.exceptions.NotOpenSSLWarning)
+
+import urllib.request
+import os
+import sys
+os.environ["GRPC_VERBOSITY"] = "ERROR"
+os.environ["GLOG_minloglevel"] = "2"
+import time
+import threading
+import queue
+import io
+import json
+import datetime
+import math
+from pathlib import Path
+import pickle
+from PIL import Image
+
+import speech_recognition as sr
+from google import genai
+from dotenv import load_dotenv
+from gtts import gTTS
+import pygame
+
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+
+import cv2
+import numpy as np
+import joblib
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+import pyautogui
+from websocket_server import WebsocketServer
+
+# --- GLOBALS & CONSTANTS ---
+latest_frame = None
+pyautogui.FAILSAFE = False
+pyautogui.PAUSE = 0
+SCREEN_W, SCREEN_H = pyautogui.size()
+
+FRAME_R = 0  # Cropped margin for hand tracking
+SMOOTHING_FREE = 7      
+SMOOTHING_DRAG = 14     
+PINCH_GRAB_DIST = 0.045  
+PINCH_DROP_DIST = 0.085  
+
+FINGER_CHAINS = {
+    "Thumb":  (1,  2,  3,  4), "Index":  (5,  6,  7,  8),
+    "Middle": (9,  10, 11, 12), "Ring":   (13, 14, 15, 16), "Pinky":  (17, 18, 19, 20),
+}
+
+recognized_user = None
+last_seen_time = 0
+FACE_TIMEOUT = 15
+
+speech_queue = queue.Queue()
+is_speaking = False
+
+
+# --- SETUP WEBSOCKETS ---
+try:
+    ws_server = WebsocketServer(host='127.0.0.1', port=8765)
+    def new_client(client, server):
+        print("\n✅ Mirror UI has connected to the brain!")
+        server.send_message(client, json.dumps({
+            "ai_state": "idle", 
+            "ai_text": "Ready! Say 'Hey Mirror'", 
+            "todos": get_todos()
+        }))
+    def on_message(client, server, message):
+        try:
+            data = json.loads(message)
+            if data.get("type") == "todo_add":
+                t = get_todos()
+                t.append(data["task"])
+                save_todos(t)
+            elif data.get("type") == "todo_delete":
+                t = get_todos()
+                if data["task"] in t: t.remove(data["task"])
+                save_todos(t)
+        except Exception as e: print(f"WS Incoming Error: {e}")
+        
+    ws_server.set_fn_new_client(new_client)
+    ws_server.set_fn_message_received(on_message)
+    print("✅ WebSocket Server running on port 8765")
+except Exception as e:
+    print(f"❌ Failed to bind WebSocket: {e}")
+    ws_server = None
+
+def send_to_ui(data_dict):
+    if ws_server:
+        try: ws_server.send_message_to_all(json.dumps(data_dict))
+        except Exception as e: print(f"⚠️ WebSocket Send Error: {e}")
+
+threading.Thread(target=lambda: ws_server.run_forever() if ws_server else None, daemon=True).start()
+
+
+# --- TTS ENGINE ---
+def speak(text):
+    global is_speaking
+    is_speaking = True
+    send_to_ui({"ai_state": "idle", "ai_text": text})
+    try:
+        clean_text = text.replace('*', '').replace('#', '')
+        print(f"[Audio] Speaking: {clean_text}")
+        tts = gTTS(text=clean_text, lang='en')
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+            
+        pygame.mixer.music.load(fp)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy(): time.sleep(0.1)
+    except Exception as e:
+        print(f"TTS Error: {e}")
+    finally:
+        time.sleep(1.2)
+        is_speaking = False
+
+
+# --- UNIFIED VISION ENGINE (FACE ID + HAND TRACKING) ---
+def dist(p1, p2):
+    return math.hypot(p2.x - p1.x, p2.y - p1.y)
+
+def hand_center(lm):
+    return sum(p.x for p in lm) / len(lm), sum(p.y for p in lm) / len(lm)
+
+def unified_vision_thread():
+    global recognized_user, last_seen_time, latest_frame
+    
+    # 1. Init Face ID
+    YUNET_PATH = "Magic_Mirror_Package/yunet.onnx"
+    SFACE_PATH = "Magic_Mirror_Package/sface.onnx"
+    MODEL_PATH = Path("Magic_Mirror_Package/face_profiles/hybrid_ai_model.pkl")
+    PROFILES_JSON = Path("Magic_Mirror_Package/face_profiles/profiles.pkl")
+    
+    # 2. Init Hand Tracking
+    HAND_MODEL_PATH = "hand_landmarker.task"
+    if not os.path.exists(HAND_MODEL_PATH):
+        print("Downloading MediaPipe hand tracking model...")
+        urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", HAND_MODEL_PATH)
+    
+    options = vision.HandLandmarkerOptions(
+        base_options=python.BaseOptions(model_asset_path=HAND_MODEL_PATH),
+        num_hands=1, min_hand_detection_confidence=0.6,
+        min_hand_presence_confidence=0.6, min_tracking_confidence=0.6,
+    )
+    hand_detector = vision.HandLandmarker.create_from_options(options)
+
+    # 3. Open Camera (Once)
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("❌ Error: Could not open camera.")
+        return
+        
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    face_detector = cv2.FaceDetectorYN.create(YUNET_PATH, "", (w, h), 0.9, 0.3, 5000) if os.path.exists(YUNET_PATH) else None
+    face_recognizer = cv2.FaceRecognizerSF.create(SFACE_PATH, "") if os.path.exists(SFACE_PATH) else None
+
+    profiles, model = {}, None
+    if PROFILES_JSON.exists():
+        with open(PROFILES_JSON, "rb") as f: profiles = pickle.load(f)
+    if MODEL_PATH.exists():
+        model = joblib.load(MODEL_PATH)
+
+    print("✅ Unified Vision Engine (Face ID + Hand Gestures) Online")
+
+    frame_idx = 0
+    prev_x, prev_y = 0, 0
+    mouse_held = False
+
+    while True:
+        success, image = cap.read()
+        if not success: 
+            time.sleep(0.01)
+            continue
+            
+        image = cv2.flip(image, 1)
+        latest_frame = image.copy()
+        frame_idx += 1
+
+        # ==========================================
+        # MODULE A: HAND TRACKING (Every Frame)
+        # ==========================================
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        results = hand_detector.detect(mp_image)
+
+        if results.hand_landmarks:
+            lm = results.hand_landmarks[0]
+            px, py = hand_center(lm)
+            fx, fy = px * w, py * h  
+
+            x_mapped = int((fx - FRAME_R) / (w - 2 * FRAME_R) * SCREEN_W)
+            y_mapped = int((fy - FRAME_R) / (h - 2 * FRAME_R) * SCREEN_H)
+            x_mapped = max(0, min(SCREEN_W - 1, x_mapped))
+            y_mapped = max(0, min(SCREEN_H - 1, y_mapped))
+
+            active_smoothing = SMOOTHING_DRAG if mouse_held else SMOOTHING_FREE
+            curr_x = prev_x + (x_mapped - prev_x) / active_smoothing
+            curr_y = prev_y + (y_mapped - prev_y) / active_smoothing
+
+            try: pyautogui.moveTo(int(curr_x), int(curr_y))
+            except Exception: pass
+
+            prev_x, prev_y = curr_x, curr_y
+
+            # Sticky Pinch Logic
+            thumb_tip = lm[4]
+            min_dist = min(dist(thumb_tip, lm[tip_idx]) for tip_idx in [8, 12, 16, 20])
+
+            if not mouse_held and min_dist < PINCH_GRAB_DIST:
+                pyautogui.mouseDown(button="left")
+                mouse_held = True
+            elif mouse_held and min_dist > PINCH_DROP_DIST:
+                pyautogui.mouseUp(button="left")
+                mouse_held = False
+        else:
+            if mouse_held:
+                pyautogui.mouseUp(button="left")
+                mouse_held = False
+
+        # ==========================================
+        # MODULE B: FACE RECOGNITION (Every 10 Frames)
+        # ==========================================
+        if frame_idx % 10 == 0 and face_detector and model and face_recognizer:
+            try:
+                _, faces = face_detector.detect(image)
+                if faces is not None:
+                    face_aligned = face_recognizer.alignCrop(image, faces[0])
+                    current_embedding = face_recognizer.feature(face_aligned).flatten().reshape(1, -1)
+                    probs = model.predict_proba(current_embedding)[0]
+                    best_idx = np.argmax(probs)
+                    
+                    if probs[best_idx] > 0.60:
+                        new_user = profiles.get("id_to_name", {}).get(int(model.classes_[best_idx]), "Unknown")
+                        if recognized_user != new_user:
+                            recognized_user = new_user
+                            speech_queue.put(f"Hi {recognized_user}")
+                        last_seen_time = time.time()
+            except Exception: pass
+                
+        # Handle Auto-Logout
+        if recognized_user is not None and (time.time() - last_seen_time > FACE_TIMEOUT):
+            recognized_user = None
+            speech_queue.put("Session logged out.")
+            
+        time.sleep(0.01)
+
+threading.Thread(target=unified_vision_thread, daemon=True).start()
+
+
+# --- SETUP LIVE WEATHER ---
+def weather_thread():
+    while True:
+        try:
+            url = "https://api.open-meteo.com/v1/forecast?latitude=25.2048&longitude=55.2708&current_weather=true"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                temp = data['current_weather']['temperature']
+                send_to_ui({"temp": f"{round(temp)}°C"})
+        except Exception as e: print(f"Weather Fetch Error: {e}")
+        time.sleep(1800)
+threading.Thread(target=weather_thread, daemon=True).start()
+print("✅ Weather Engine online (Dubai, UAE)")
+
+
+# --- LOAD SECRETS & APIs ---
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key: sys.exit("ERROR: Missing Gemini API key in .env file!")
+client = genai.Client(api_key=api_key)
+
+SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
+SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
+SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
+
+if not SPOTIPY_CLIENT_ID or not SPOTIPY_CLIENT_SECRET:
+    sys.exit("\nERROR: Missing Spotify credentials in .env file!")
+
+print("\nInitializing Spotify Authentication...")
+try:
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+        client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET,
+        redirect_uri=SPOTIPY_REDIRECT_URI, scope="user-modify-playback-state user-read-playback-state"
+    ))
+    sp.current_user() 
+    print("✅ Spotify Connected Successfully!")
+except Exception as e: sys.exit(f"❌ Failed to connect to Spotify: {e}")
+
+def spotify_sync_thread():
+    while True:
+        try:
+            current = sp.current_playback()
+            if current and current.get('item'):
+                is_playing = current['is_playing']
+                item = current['item']
+                images = item['album']['images']
+                send_to_ui({
+                    "song": item['name'] if is_playing else f"{item['name']} (Paused)",
+                    "artist": item['artists'][0]['name'],
+                    "album_art": images[0]['url'] if images else "https://misc.scdn.co/liked-songs/liked-songs-300.png",
+                    "progress_ms": current.get('progress_ms', 0),
+                    "duration_ms": item.get('duration_ms', 1),
+                    "is_playing": is_playing
+                })
+        except Exception: pass 
+        time.sleep(3)
+threading.Thread(target=spotify_sync_thread, daemon=True).start()
+print("✅ Spotify Live Sync Engine online")
+
+# --- SETUP GOOGLE CALENDAR (MULTI-USER) ---
+SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+calendar_services = {}  # This will store the active connections for each user
+
+def get_calendar_service():
+    """Dynamically loads the correct Google Calendar for the person looking at the mirror."""
+    if not recognized_user: return None
+    
+    # If we already loaded their calendar this session, just return it
+    if recognized_user in calendar_services:
+        return calendar_services[recognized_user]
+        
+    token_path = f"calendar_tokens/{recognized_user}_token.json"
+    
+    creds = Credentials.from_authorized_user_file(token_path, SCOPES) if os.path.exists(token_path) else None
+    
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token: 
+            creds.refresh(Request())
+        else:
+            print(f"⚠️ {recognized_user} does not have a valid Calendar token. Please generate one.")
+            return None
+            
+        # Save the refreshed token back to their specific file
+        with open(token_path, 'w') as token: 
+            token.write(creds.to_json())
+            
+    # Build and cache their specific service
+    service = build('calendar', 'v3', credentials=creds)
+    calendar_services[recognized_user] = service
+    print(f"✅ Google Calendar Loaded for: {recognized_user}")
+    return service
+
+
+# --- FIREBASE TO-DO LOGIC ---
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+db = None
+try:
+    cred = credentials.Certificate('firebase_credentials.json')
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    print("✅ Firebase Connected Successfully!")
+except Exception as e:
+    print(f"❌ Firebase Failed (Missing firebase_credentials.json? Falling back to empty list): {e}")
+
+def get_todos():
+    # If no one is recognized, return an empty list
+    if not db or not recognized_user: return []
+    try:
+        # Dynamically fetch the document named after the user (e.g., "Afthab")
+        doc = db.collection('todos').document(recognized_user).get()
+        return doc.to_dict().get('tasks', []) if doc.exists else []
+    except: return []
+
+def save_todos(todos):
+    if not db or not recognized_user: return
+    try:
+        # Save directly to the user's specific document
+        db.collection('todos').document(recognized_user).set({'tasks': todos})
+        send_to_ui({"todos": todos})
+    except Exception as e: print(f"Failed to push to Firebase: {e}")
+
+def todo_sync_thread():
+    last_todos = None
+    last_user = None
+    while True:
+        try:
+            # Force a UI refresh if a new face steps in front of the mirror
+            if recognized_user != last_user:
+                last_user = recognized_user
+                last_todos = None 
+            
+            if recognized_user:
+                current_todos = get_todos()
+                if current_todos != last_todos:
+                    send_to_ui({"todos": current_todos})
+                    last_todos = current_todos
+            else:
+                # If the mirror locks/logs out, clear the UI
+                if last_todos != []:
+                    send_to_ui({"todos": []})
+                    last_todos = []
+        except Exception: pass
+        time.sleep(2)
+threading.Thread(target=todo_sync_thread, daemon=True).start()
+print("✅ To-Do Live Sync Engine online")
+
+
+# --- ORCHESTRATION LOGIC ---
+WAKE_WORD = "hey mirror"
+listening_for_command = False
+last_interaction_time = time.time()
+TIMEOUT_SECONDS = 15
+last_calibration_time = time.time()
+CALIBRATION_INTERVAL = 60
+
+def process_calendar_intent(json_data):
+    service = get_calendar_service()
+    if not service:
+        return speech_queue.put("I'm sorry, I don't have your calendar linked to your face profile yet.")
+        
+    intent = json_data.get("intent")
+    if intent == "read":
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z") 
+        events = service.events().list(calendarId='primary', timeMin=now, maxResults=15, singleEvents=True, orderBy='startTime').execute().get('items', [])
+        real_events = [e for e in events if "birthday" not in e.get('summary', '').lower() and "holiday" not in e.get('summary', '').lower()][:5]
+        
+        if not real_events: return speech_queue.put("You have absolutely nothing on your calendar coming up.")
+            
+        resp = "Here are your upcoming events: "
+        for event in real_events:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            time_str = datetime.datetime.fromisoformat(start).strftime("%A at %I:%M %p") if 'T' in start else "All day"
+            resp += f"{event.get('summary', 'Event')} {time_str}. "
+        speech_queue.put(resp)
+        
+    elif intent == "add":
+        summary, date_str, time_str = json_data.get("summary", "New Alert"), json_data.get("date"), json_data.get("time")
+        if not date_str or not time_str: return speech_queue.put("I couldn't figure out exactly when you wanted me to schedule that.")
+        start_datetime = f"{date_str}T{time_str}"
+        end_datetime = (datetime.datetime.fromisoformat(start_datetime) + datetime.timedelta(minutes=30)).isoformat()
+        tz = datetime.datetime.now().astimezone().tzinfo
+        local_tz = str(tz) if tz else 'America/New_York'
+        try:
+            service.events().insert(calendarId='primary', body={'summary': summary, 'start': {'dateTime': start_datetime, 'timeZone': local_tz}, 'end': {'dateTime': end_datetime, 'timeZone': local_tz}}).execute()
+            speech_queue.put(f"I've added {summary} to your calendar.")
+        except Exception: speech_queue.put("I couldn't sync that format with your Google Calendar.")
+             
+    elif intent == "delete":
+        summary = json_data.get("summary")
+        if not summary: return speech_queue.put("I didn't catch the name of the event to delete.")
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+        try:
+            events = service.events().list(calendarId='primary', q=summary, timeMin=now, maxResults=5, singleEvents=True, orderBy='startTime').execute().get('items', [])
+            if not events: return speech_queue.put(f"I couldn't find an upcoming event matching {summary}.")
+            service.events().delete(calendarId='primary', eventId=events[0]['id']).execute()
+            speech_queue.put(f"I have canceled {events[0].get('summary', 'Unknown Event')} from your calendar.")
+        except Exception: speech_queue.put("I ran into an error trying to cancel that event.")
+
+def process_todo_intent(json_data):
+    intent, task = json_data.get("intent"), json_data.get("task")
+    todos = get_todos()
+    if intent == "read": speech_queue.put(f"Here is your list: {', '.join(todos)}." if todos else "You don't have anything on your to-do list right now.")
+    elif intent == "add" and task:
+        todos.append(task)
+        save_todos(todos)
+        speech_queue.put(f"I've added {task} to your list.")
+    elif intent == "clear":
+        save_todos([])
+        speech_queue.put("Your list has been cleared completely.")
+    elif intent == "delete" and task:
+        matched = next((item for item in todos if task.lower() in item.lower() or item.lower() in task.lower()), None)
+        if matched:
+            todos.remove(matched)
+            save_todos(todos)
+            speech_queue.put(f"I've crossed off {matched} from your list.")
+        else: speech_queue.put(f"I couldn't find {task} on your to-do list.")
+
+def ask_gemini(text_query):
+    query_lower = text_query.lower()
+    send_to_ui({"ai_state": "thinking", "ai_text": "Thinking..."})
+    sys_aw = f"SYSTEM AWARENESS: {datetime.datetime.now().strftime('%I:%M %p on %A, %B %d, %Y')}. Location: Dubai, UAE.\n"
+    
+    if any(k in query_lower.split() for k in ["spotify", "music", "song", "track", "play", "pause", "skip", "next"]):
+        try:
+            if "pause" in query_lower or "stop" in query_lower:
+                sp.pause_playback()
+                return speech_queue.put("Paused Spotify.")
+            elif "next" in query_lower or "skip" in query_lower:
+                sp.next_track()
+                return speech_queue.put("Skipping to the next song.")
+            elif "play" in query_lower or "resume" in query_lower:
+                song_name = query_lower.replace("play ", "", 1).strip()
+                if song_name and song_name not in ["music", "spotify", "the music", "some music"]:
+                    search_q = f"track:{song_name.split(' by ')[0]} artist:{song_name.split(' by ')[1]}" if " by " in song_name else song_name
+                    results = sp.search(q=search_q, limit=1, type='track')
+                    if results['tracks']['items']:
+                        track = results['tracks']['items'][0]
+                        sp.start_playback(uris=[track['uri']])
+                        return speech_queue.put(f"Playing {track['name']} by {track['artists'][0]['name']}.")
+                    return speech_queue.put("I couldn't find that song on Spotify.")
+                sp.start_playback()
+                return speech_queue.put("Resuming your music.")
+        except spotipy.exceptions.SpotifyException: return speech_queue.put("I couldn't find an active Spotify device.")
+            
+    if "calendar" in query_lower.split() or "schedule" in query_lower.split():
+        try:
+            prompt = f"{sys_aw}EXTREMELY STRICT RULES: Output ONLY a single raw JSON object. NO markdown, NO text. Action mappings -> Add: {{\"intent\": \"add\", \"summary\": \"X\", \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM:00\"}}. Delete: {{\"intent\": \"delete\", \"summary\": \"X\"}}. Read: {{\"intent\": \"read\"}}.\nUser: {text_query}"
+            res = client.models.generate_content(model='gemma-3-4b-it', contents=prompt).text
+            
+            import re
+            match = re.search(r'\{.*\}', res, re.DOTALL)
+            if match:
+                return process_calendar_intent(json.loads(match.group()))
+            else:
+                raise ValueError("No JSON found in response.")
+        except Exception as e: 
+            print(f"Calendar Logic Error: {e}")
+            return speech_queue.put("I'm having trouble connecting to my calendar brain.")
+
+    if any(k in query_lower.split() for k in ["todo", "task", "list", "buy", "remind", "finish", "delete", "cancel", "to-do", "tasks", "lists"]):
+        try:
+            prompt = f"{sys_aw}EXTREMELY STRICT RULES: Output ONLY a single raw JSON object. NO markdown, NO conversational text. Action mappings -> Add: {{\"intent\": \"add\", \"task\": \"...\"}}. Delete: {{\"intent\": \"delete\", \"task\": \"...\"}}. Read: {{\"intent\": \"read\"}}. Clear: {{\"intent\": \"clear\"}}.\nUser: {text_query}"
+            res = client.models.generate_content(model='gemma-3-4b-it', contents=prompt).text
+            
+            import re
+            match = re.search(r'\{.*\}', res, re.DOTALL)
+            if match:
+                return process_todo_intent(json.loads(match.group()))
+            else:
+                raise ValueError("No JSON found in response.")
+        except Exception as e: 
+            print(f"To-Do Logic Error: {e}")
+            return speech_queue.put("I had a brain freeze managing your tasks.")
+
+    vision_keywords = ["what is this", "what am i holding", "what is in front", "what is with me", "look at this"]
+    if any(k in query_lower for k in vision_keywords):
+        print(f"\n[👁️ Routing to Vision AI...]")
+        if latest_frame is not None:
+            try:
+                # Convert OpenCV's BGR color to Standard RGB, then to a PIL Image
+                rgb_image = cv2.cvtColor(latest_frame, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(rgb_image)
+                
+                prompt = f"{sys_aw}Look at the image I am providing. Identify the main object I am holding or showing you. Tell me exactly what it is, and then give me two quick, fascinating facts about it. Keep your response conversational, concise, and under 3 sentences."
+                
+                # Use Gemini's multimodal flash model to process the image and text together
+                res = client.models.generate_content(
+                    model='gemini-2.5-flash', 
+                    contents=[pil_image, prompt]
+                )
+                return speech_queue.put(res.text.strip())
+            except Exception as e:
+                print(f"Vision AI Error: {e}")
+                return speech_queue.put("I'm having trouble focusing my eyes right now.")
+        else:
+            return speech_queue.put("My camera feed is currently blind.")
+
+    try:
+        res = client.models.generate_content(model='gemma-3-4b-it', contents=f"{sys_aw}Keep responses brief and conversational (1-2 sentences).\nUser: {text_query}")
+        speech_queue.put(res.text.strip())
+    except Exception: speech_queue.put("I am having trouble connecting to my brain right now.")
+
+def audio_callback(recognizer, audio):
+    global listening_for_command, is_speaking
+    if is_speaking: return
+    try:
+        text = recognizer.recognize_google(audio).lower()
+        if listening_for_command:
+            text = text.replace("i am listening", "").strip()
+            if not text: return
+            if recognized_user is None:
+                speech_queue.put("User is not recognised.")
+            else: ask_gemini(text)
+            listening_for_command = False
+        elif WAKE_WORD in text:
+            if recognized_user is None:
+                speech_queue.put("User is not recognised.")
+                return
+            send_to_ui({"ai_state": "listening", "ai_text": "I am listening..."})
+            cmd = text.replace(WAKE_WORD, "").strip()
+            if cmd: ask_gemini(cmd)
+            else:
+                speech_queue.put("I am listening.")
+                listening_for_command = True
+    except: pass
+
+def start_listening(is_recalibrating=False):
+    recognizer = sr.Recognizer()
+    recognizer.dynamic_energy_threshold, recognizer.pause_threshold, recognizer.non_speaking_duration = False, 0.5, 0.4
+    try: microphone = sr.Microphone()
+    except OSError: sys.exit("Error: Could not access the microphone.")
+    with microphone as source:
+        recognizer.adjust_for_ambient_noise(source, duration=1.5 if is_recalibrating else 3)
+        recognizer.energy_threshold += 300
+        if not is_recalibrating: print(f"\\nReady! Say '{WAKE_WORD}'...")
+    return recognizer.listen_in_background(microphone, audio_callback, phrase_time_limit=8)
+
+if __name__ == "__main__":
+    print("-------------------------------------------------------")
+    print("Initializing Smart Mirror Audio, Spotify, & Calendar...")
+    print("-------------------------------------------------------")
+    send_to_ui({"ai_state": "idle", "ai_text": "Ready! Say 'Hey Mirror'", "todos": get_todos()})
+    stop_listening = start_listening(False)
+    try:
+        while True:
+            try:
+                speak(speech_queue.get_nowait())
+                last_interaction_time, last_calibration_time = time.time(), time.time()
+            except queue.Empty: pass 
+            
+            if listening_for_command and not is_speaking and (time.time() - last_interaction_time) > TIMEOUT_SECONDS:
+                listening_for_command = False
+                send_to_ui({"ai_state": "idle", "ai_text": "Say 'Hey Mirror'"})
+                speech_queue.put("Going to sleep.")
+            
+            if not listening_for_command and not is_speaking and (time.time() - last_calibration_time) > CALIBRATION_INTERVAL:
+                stop_listening(wait_for_stop=False)
+                stop_listening = start_listening(True)
+                last_calibration_time = time.time()
+            time.sleep(0.1) 
+    except KeyboardInterrupt: stop_listening(wait_for_stop=False)

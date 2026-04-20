@@ -4,6 +4,7 @@ credentials.json
 token.json
 .cache
 firebase_credentials.json
+calendar_tokens/
 
 # User Profiles (if using multi-user architecture)
 profiles/
