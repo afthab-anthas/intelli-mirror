@@ -54,6 +54,7 @@ body {
   width: 320px;
   margin-bottom: 20px;
   text-shadow: 0px 4px 15px rgba(0, 0, 0, 0.9);
+  transition: transform 0.4s ease-out;
 }
 
 .draggable {
@@ -71,6 +72,7 @@ body {
   box-shadow: 0 10px 40px rgba(0, 242, 255, 0.2);
   border: 1px solid rgba(0, 242, 255, 0.4);
   border-radius: 12px;
+
 }
 
 .icon-ai {
@@ -388,4 +390,27 @@ body {
   opacity: 0.15;
   filter: blur(4px);
   pointer-events: none;
+}
+
+/* ======== AMBIENT LOCK SCREEN ======== */
+body.locked-mode #ai-assistant,
+body.locked-mode #calendar,
+body.locked-mode #todo,
+body.locked-mode #weather,
+body.locked-mode #spotify,
+body.locked-mode #voice-interface {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  filter: blur(10px);
+  /* Adds a cool dissolve effect as they fade out */
+}
+
+/* Ensure widgets fade smoothly instead of instantly blinking out */
+#ai-assistant,
+#calendar,
+#todo,
+#weather,
+#spotify,
+#voice-interface {
+  transition: opacity 0.8s ease, filter 0.8s ease, transform 0.4s ease-out;
 }

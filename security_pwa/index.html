@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirror Security PWA</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            background: #0f172a;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* PIN Screen */
+        #pin-screen {
+            display: block;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: none;
+            font-size: 24px;
+            text-align: center;
+            box-sizing: border-box;
+            background: #0f172a;
+            color: white;
+            outline: none;
+        }
+
+        input[type="password"]:focus {
+            border: 1px solid #0ea5e9;
+        }
+
+        button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0284c7;
+        }
+
+        /* Dashboard Screen */
+        #dashboard-screen {
+            display: none;
+        }
+
+        .status {
+            margin: 10px 0 20px 0;
+            font-size: 16px;
+            color: #94a3b8;
+        }
+
+        .status span {
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin: 10px 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ef4444;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #10b981;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Divider & Widget Boxes */
+        hr {
+            border: none;
+            height: 1px;
+            background: #334155;
+            margin: 30px 0;
+        }
+
+        .widget-box {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #334155;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .widget-box h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        /* Intruder Log */
+        .log-container {
+            max-height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        .log-item {
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 10px;
+            border-left: 4px solid #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .log-item img {
+            width: 70px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #334155;
+        }
+
+        .log-details {
+            font-size: 14px;
+        }
+
+        .log-time {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #ef4444;
+            color: #fff;
+            text-align: center;
+            border-radius: 10px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            top: 20px;
+            transform: translateX(-50%);
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 4.5s;
+        }
+
+        @keyframes fadein {
+            from {
+                top: 0;
+                opacity: 0;
+            }
+
+            to {
+                top: 20px;
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeout {
+            from {
+                top: 20px;
+                opacity: 1;
+            }
+
+            to {
+                top: 0;
+                opacity: 0;
+            }
+        }
+
+        /* Image Viewer Modal */
+        #image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #modal-img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 10px;
+            border: 2px solid #334155;
+        }
+        
+        #modal-close {
+            margin-top: 20px;
+            padding: 10px 30px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div id="pin-screen">
+            <h2>Admin Login</h2>
+            <p style="color: #94a3b8; font-size: 14px;">Enter PIN to access mirror data.</p>
+            <input type="password" id="pin-input" placeholder="••••" maxlength="4">
+            <button onclick="checkPin()">Unlock</button>
+            <p id="pin-error" style="color: #ef4444; display: none; margin-top: 10px;">Incorrect PIN</p>
+        </div>
+
+        <div id="dashboard-screen">
+            <h2>Security Panel</h2>
+            <div class="status" id="mqtt-status">MQTT: <span style="color: #f59e0b;">Connecting...</span></div>
+
+            <label class="switch">
+                <input type="checkbox" id="security-toggle" onchange="toggleSecurity()">
+                <span class="slider"></span>
+            </label>
+            <h3 id="mode-text" style="color: #ef4444; margin: 10px 0 5px 0;">NORMAL MODE</h3>
+            <p style="color: #94a3b8; font-size: 14px; margin-top: 0;">Toggle right to Enforce Face Lock.</p>
+
+            <hr>
+
+            <div class="widget-box">
+                <h3 style="color: #ef4444;">🚨 Intruder Snapshots</h3>
+                <div class="log-container" id="intruder-log">
+                    <p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No intruders
+                        detected yet.</p>
+                </div>
+            </div>
+
+            <div class="widget-box">
+                <h3>📊 Weekly Logins</h3>
+                <canvas id="loginChart" height="180"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="toast">🚨 INTRUDER DETECTED AT MIRROR!</div>
+
+    <div id="image-modal">
+        <img id="modal-img" src="">
+        <button id="modal-close" onclick="document.getElementById('image-modal').style.display='none'">Close</button>
+    </div>
+
+    <script>
+        // --- 1. PIN LOGIC ---
+        const CORRECT_PIN = "1234";
+
+        function checkPin() {
+            const input = document.getElementById("pin-input").value;
+            if (input === CORRECT_PIN) {
+                // Request OS Notification permissions for the PWA upon login
+                if ("Notification" in window) Notification.requestPermission();
+                
+                document.getElementById("pin-screen").style.display = "none";
+                document.getElementById("dashboard-screen").style.display = "block";
+                connectMQTT();
+            } else {
+                document.getElementById("pin-error").style.display = "block";
+                document.getElementById("pin-input").value = "";
+            }
+        }
+
+        // --- 2. MQTT & SECURITY LOGIC ---
+        let client;
+        const TOPIC_MODE = "intellimirror_77x9/security_mode";
+        const TOPIC_ALERTS = "intellimirror_77x9/alerts";
+
+        function connectMQTT() {
+            client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+
+            client.on("connect", () => {
+                document.getElementById("mqtt-status").innerHTML = 'MQTT: <span style="color: #10b981;">Connected</span>';
+                client.subscribe(TOPIC_ALERTS);
+            });
+
+            client.on("message", (topic, message) => {
+                try {
+                    const data = JSON.parse(message.toString());
+                    if (data.type === "intruder") {
+                        addIntruderLog(data.time, data.image);
+                    } else if (data.type === "stats") {
+                        updateChart(data.data);
+                    }
+                } catch (e) {
+                    if (message.toString() === "INTRUDER_DETECTED") showToast();
+                }
+            });
+        }
+
+        function toggleSecurity() {
+            const isEnforced = document.getElementById("security-toggle").checked;
+            const modeText = document.getElementById("mode-text");
+
+            if (isEnforced) {
+                modeText.innerText = "ENFORCED MODE";
+                modeText.style.color = "#10b981";
+                client.publish(TOPIC_MODE, "ENFORCED");
+            } else {
+                modeText.innerText = "NORMAL MODE";
+                modeText.style.color = "#ef4444";
+                client.publish(TOPIC_MODE, "NORMAL");
+            }
+        }
+
+        function showNotificationBanner(timeStr, imageB64) {
+            // 1. OS-Level Push Notification
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("🚨 Mirror Security Alert", {
+                    body: `Intruder detected at ${timeStr}. Check dashboard.`,
+                    icon: imageB64
+                });
+            }
+
+            // 2. In-App Website Banner
+            const toast = document.getElementById("toast");
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="openImageModal('${imageB64}')">
+                    <img src="${imageB64}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;">
+                    <div style="text-align: left;">
+                        <div style="font-weight: bold; font-size: 15px;">🚨 Intruder Detected</div>
+                        <div style="font-size: 12px; color: #f1f5f9; margin-top: 3px;">Tap to view • ${timeStr}</div>
+                    </div>
+                </div>`;
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 5000);
+        }
+
+        // --- 3. INTRUDER LOG LOGIC ---
+        let intruderLogs = JSON.parse(localStorage.getItem('intruderLogs')) || [];
+
+        function renderIntruderLogs() {
+            const logContainer = document.getElementById("intruder-log");
+            logContainer.innerHTML = "";
+            if (intruderLogs.length === 0) {
+                logContainer.innerHTML = '<p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No intruders detected yet.</p>';
+                return;
+            }
+            intruderLogs.forEach(log => {
+                const item = document.createElement("div");
+                item.className = "log-item";
+                item.innerHTML = `
+                    <img src="${log.image}" alt="Intruder" style="cursor: pointer;" onclick="openImageModal('${log.image}')">
+                    <div class="log-details">
+                        <strong>Unknown Face</strong>
+                        <div class="log-time">${log.time}</div>
+                    </div>
+                `;
+                logContainer.appendChild(item);
+            });
+        }
+
+        function openImageModal(imgSrc) {
+            document.getElementById('modal-img').src = imgSrc;
+            document.getElementById('image-modal').style.display = 'flex';
+        }
+
+        function addIntruderLog(timeStr, imageB64) {
+            intruderLogs.unshift({ time: timeStr, image: imageB64 });
+            if (intruderLogs.length > 20) intruderLogs.pop(); // Keep only last 20 logs to save storage space
+            localStorage.setItem('intruderLogs', JSON.stringify(intruderLogs));
+            renderIntruderLogs();
+            showNotificationBanner(timeStr, imageB64);
+        }
+
+        // Run on startup
+        renderIntruderLogs();
+
+        // --- 4. CHART.JS LOGIC ---
+        let chartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('loginChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#cbd5e1', font: { family: '-apple-system' } } } }
+                }
+            });
+        }
+
+        function updateChart(statsData) {
+            localStorage.setItem('loginStats', JSON.stringify(statsData)); // Cache for startup
+            if (!chartInstance) initChart();
+
+            const dates = Object.keys(statsData).sort().slice(-5); // Keep to last 5 days so it fits nicely
+            const users = new Set();
+            dates.forEach(d => Object.keys(statsData[d]).forEach(u => users.add(u)));
+
+            const colors = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6'];
+            const datasets = Array.from(users).map((user, i) => ({
+                label: user,
+                data: dates.map(date => statsData[date][user] || 0),
+                backgroundColor: colors[i % colors.length],
+                borderRadius: 4
+            }));
+
+            chartInstance.data.labels = dates;
+            chartInstance.data.datasets = datasets;
+            chartInstance.update();
+        }
+
+        const savedStats = JSON.parse(localStorage.getItem('loginStats'));
+        if (savedStats) {
+            updateChart(savedStats);
+        } else {
+            initChart(); // Draw empty chart on startup if no cache
+        }
+    </script>
+</body>
+
+</html>

@@ -18,6 +18,7 @@ import math
 from pathlib import Path
 import pickle
 from PIL import Image
+import webbrowser
 
 import speech_recognition as sr
 from google import genai
@@ -43,6 +44,7 @@ from websocket_server import WebsocketServer
 
 # --- GLOBALS & CONSTANTS ---
 latest_frame = None
+latest_temp = "--°C"
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0
 SCREEN_W, SCREEN_H = pyautogui.size()
@@ -60,7 +62,7 @@ FINGER_CHAINS = {
 
 recognized_user = None
 last_seen_time = 0
-FACE_TIMEOUT = 15
+FACE_TIMEOUT = 60
 
 speech_queue = queue.Queue()
 is_speaking = False
@@ -74,7 +76,8 @@ try:
         server.send_message(client, json.dumps({
             "ai_state": "idle", 
             "ai_text": "Ready! Say 'Hey Mirror'", 
-            "todos": get_todos()
+            "todos": get_todos(),
+            "temp": latest_temp
         }))
     def on_message(client, server, message):
         try:
@@ -87,6 +90,9 @@ try:
                 t = get_todos()
                 if data["task"] in t: t.remove(data["task"])
                 save_todos(t)
+            # --- NEW: Catch the layout coordinates from JS ---
+            elif data.get("type") == "layout_save":
+                save_layout_widget(data.get("widget_id"), data.get("x"), data.get("y"))
         except Exception as e: print(f"WS Incoming Error: {e}")
         
     ws_server.set_fn_new_client(new_client)
@@ -265,6 +271,7 @@ threading.Thread(target=unified_vision_thread, daemon=True).start()
 
 # --- SETUP LIVE WEATHER ---
 def weather_thread():
+    global latest_temp
     while True:
         try:
             url = "https://api.open-meteo.com/v1/forecast?latitude=25.2048&longitude=55.2708&current_weather=true"
@@ -272,7 +279,8 @@ def weather_thread():
             with urllib.request.urlopen(req) as response:
                 data = json.loads(response.read().decode())
                 temp = data['current_weather']['temperature']
-                send_to_ui({"temp": f"{round(temp)}°C"})
+                latest_temp = f"{round(temp)}°C"
+                send_to_ui({"temp": latest_temp})
         except Exception as e: print(f"Weather Fetch Error: {e}")
         time.sleep(1800)
 threading.Thread(target=weather_thread, daemon=True).start()
@@ -387,30 +395,68 @@ def save_todos(todos):
         send_to_ui({"todos": todos})
     except Exception as e: print(f"Failed to push to Firebase: {e}")
 
-def todo_sync_thread():
+def get_layout():
+    """Fetches the specific widget layout for the recognized user."""
+    if not db or not recognized_user: return {}
+    try:
+        doc = db.collection('layouts').document(recognized_user).get()
+        return doc.to_dict() if doc.exists else {}
+    except: return {}
+
+def save_layout_widget(widget_id, x, y):
+    """Saves a single widget's position to Firebase without overwriting the others."""
+    if not db or not recognized_user: return
+    try:
+        # Use merge=True so we only update the widget that just moved
+        db.collection('layouts').document(recognized_user).set(
+            {widget_id: {"x": x, "y": y}},
+            merge=True
+        )
+    except Exception as e: print(f"Failed to push layout: {e}")
+
+def state_sync_thread():
     last_todos = None
     last_user = None
     while True:
         try:
-            # Force a UI refresh if a new face steps in front of the mirror
             if recognized_user != last_user:
                 last_user = recognized_user
                 last_todos = None 
+                
+                if recognized_user:
+                    # User logged in: Load layout, UNLOCK mirror
+                    layout = get_layout()
+                    send_to_ui({
+                        "username": recognized_user, 
+                        "layout": layout,
+                        "is_locked": False  # <-- NEW: Tell UI to reveal widgets
+                    })
+                else:
+                    # User walked away (Mirror Locked): Snap back & LOCK mirror
+                    baseline_layout = {
+                        "clock": {"x":0,"y":0}, "ai-assistant": {"x":0,"y":0},
+                        "calendar": {"x":0,"y":0}, "todo": {"x":0,"y":0},
+                        "weather": {"x":0,"y":0}, "spotify": {"x":0,"y":0}
+                    }
+                    send_to_ui({
+                        "username": "Guest", 
+                        "layout": baseline_layout, 
+                        "todos": [],
+                        "is_locked": True   # <-- NEW: Tell UI to hide widgets
+                    })
             
+            # Keep To-Dos synced live
             if recognized_user:
                 current_todos = get_todos()
                 if current_todos != last_todos:
                     send_to_ui({"todos": current_todos})
                     last_todos = current_todos
-            else:
-                # If the mirror locks/logs out, clear the UI
-                if last_todos != []:
-                    send_to_ui({"todos": []})
-                    last_todos = []
+                    
         except Exception: pass
         time.sleep(2)
-threading.Thread(target=todo_sync_thread, daemon=True).start()
-print("✅ To-Do Live Sync Engine online")
+
+threading.Thread(target=state_sync_thread, daemon=True).start()
+print("✅ Multi-User State Sync Engine online (To-Dos + Custom Layouts)")
 
 
 # --- ORCHESTRATION LOGIC ---
@@ -607,6 +653,11 @@ if __name__ == "__main__":
     print("-------------------------------------------------------")
     print("Initializing Smart Mirror Audio, Spotify, & Calendar...")
     print("-------------------------------------------------------")
+    
+    website_path = os.path.abspath("website/index.html")
+    print(f"Opening browser to {website_path}...")
+    webbrowser.open(f"file://{website_path}")
+
     send_to_ui({"ai_state": "idle", "ai_text": "Ready! Say 'Hey Mirror'", "todos": get_todos()})
     stop_listening = start_listening(False)
     try:

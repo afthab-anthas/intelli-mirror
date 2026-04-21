@@ -6,7 +6,7 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// 2. Persistent Dragging (Interact.js) with Glow Feedback
+// 2. Persistent Dragging (Interact.js) with Glow Feedback & Cloud Saving
 interact('.draggable').draggable({
   listeners: {
     start(event) { event.target.classList.add('is-dragging'); },
@@ -17,7 +17,18 @@ interact('.draggable').draggable({
       target.style.transform = `translate(${x}px, ${y}px)`;
       target.setAttribute('data-x', x); target.setAttribute('data-y', y);
     },
-    end(event) { event.target.classList.remove('is-dragging'); }
+    end(event) { 
+      event.target.classList.remove('is-dragging'); 
+      // NEW: Send the final dropped coordinates to the Python Brain
+      if (window.socket && window.socket.readyState === WebSocket.OPEN) {
+        window.socket.send(JSON.stringify({ 
+          type: "layout_save", 
+          widget_id: event.target.id, 
+          x: parseFloat(event.target.getAttribute('data-x')) || 0,
+          y: parseFloat(event.target.getAttribute('data-y')) || 0
+        }));
+      }
+    }
   }
 });
 
@@ -117,6 +128,33 @@ window.socket = new WebSocket("ws://127.0.0.1:8765");
 window.socket.onopen = () => console.log("Connected to Python Backend!");
 window.socket.onmessage = (event) => {
   const d = JSON.parse(event.data);
+  
+  // --- NEW: Ambient Lock Screen Toggle ---
+  if (d.is_locked !== undefined) {
+    if (d.is_locked) {
+      document.body.classList.add('locked-mode');
+    } else {
+      document.body.classList.remove('locked-mode');
+    }
+  }
+
+  // --- NEW: Dynamic User Greeting & Layout Loading ---
+  if (d.username) {
+    document.getElementById("username").textContent = d.username;
+  }
+  
+  if (d.layout) {
+    // Apply saved coordinates to elements
+    for (const [id, coords] of Object.entries(d.layout)) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.transform = `translate(${coords.x}px, ${coords.y}px)`;
+        el.setAttribute('data-x', coords.x);
+        el.setAttribute('data-y', coords.y);
+      }
+    }
+  }
+
   if (d.temp) document.getElementById("temp").textContent = d.temp;
   if (d.ai_state) setAIState(d.ai_state);
 
