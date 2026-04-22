@@ -30,7 +30,7 @@
             max-width: 400px;
         }
 
-        /* PIN Screen */
+        /* login stuff */
         #pin-screen {
             display: block;
         }
@@ -70,7 +70,7 @@
             background: #0284c7;
         }
 
-        /* Dashboard Screen */
+        /* main dashboard layout */
         #dashboard-screen {
             display: none;
         }
@@ -86,7 +86,7 @@
             color: #10b981;
         }
 
-        /* Toggle Switch */
+        /* custom toggle switch */
         .switch {
             position: relative;
             display: inline-block;
@@ -133,7 +133,7 @@
             transform: translateX(26px);
         }
 
-        /* Divider & Widget Boxes */
+        /* cards for the graph and logs */
         hr {
             border: none;
             height: 1px;
@@ -159,7 +159,7 @@
             margin-bottom: 15px;
         }
 
-        /* Intruder Log */
+        /* scrollable intruder list */
         .log-container {
             max-height: 250px;
             overflow-y: auto;
@@ -218,7 +218,7 @@
             }
         }
 
-        /* Toast Notification */
+        /* popup alert animation */
         #toast {
             visibility: hidden;
             min-width: 250px;
@@ -265,7 +265,7 @@
             }
         }
 
-        /* Image Viewer Modal */
+        /* popup for clicking images */
         #image-modal {
             display: none;
             position: fixed;
@@ -274,7 +274,7 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.9);
+            background-color: rgba(0, 0, 0, 0.9);
             justify-content: center;
             align-items: center;
             flex-direction: column;
@@ -286,7 +286,7 @@
             border-radius: 10px;
             border: 2px solid #334155;
         }
-        
+
         #modal-close {
             margin-top: 20px;
             padding: 10px 30px;
@@ -349,15 +349,15 @@
     </div>
 
     <script>
-        // --- 1. PIN LOGIC ---
+        // pin login check
         const CORRECT_PIN = "1234";
 
         function checkPin() {
             const input = document.getElementById("pin-input").value;
             if (input === CORRECT_PIN) {
-                // Request OS Notification permissions for the PWA upon login
+                // ask for phone push notifications if they support it
                 if ("Notification" in window) Notification.requestPermission();
-                
+
                 document.getElementById("pin-screen").style.display = "none";
                 document.getElementById("dashboard-screen").style.display = "block";
                 connectMQTT();
@@ -367,12 +367,13 @@
             }
         }
 
-        // --- 2. MQTT & SECURITY LOGIC ---
+        // mqtt config
         let client;
         const TOPIC_MODE = "intellimirror_77x9/security_mode";
         const TOPIC_ALERTS = "intellimirror_77x9/alerts";
 
         function connectMQTT() {
+            // connecting to public broker via websockets
             client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
 
             client.on("connect", () => {
@@ -389,6 +390,7 @@
                         updateChart(data.data);
                     }
                 } catch (e) {
+                    // fallback if python just sends a plain text alert
                     if (message.toString() === "INTRUDER_DETECTED") showToast();
                 }
             });
@@ -410,7 +412,7 @@
         }
 
         function showNotificationBanner(timeStr, imageB64) {
-            // 1. OS-Level Push Notification
+            // trigger actual phone notification if allowed
             if ("Notification" in window && Notification.permission === "granted") {
                 new Notification("🚨 Mirror Security Alert", {
                     body: `Intruder detected at ${timeStr}. Check dashboard.`,
@@ -418,7 +420,7 @@
                 });
             }
 
-            // 2. In-App Website Banner
+            // inject custom html into the toast popup so it shows the picture
             const toast = document.getElementById("toast");
             toast.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="openImageModal('${imageB64}')">
@@ -429,19 +431,23 @@
                     </div>
                 </div>`;
             toast.className = "show";
+
+            // hide after 5 seconds
             setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 5000);
         }
 
-        // --- 3. INTRUDER LOG LOGIC ---
+        // --- local storage cache for logs so we don't lose them on reload ---
         let intruderLogs = JSON.parse(localStorage.getItem('intruderLogs')) || [];
 
         function renderIntruderLogs() {
             const logContainer = document.getElementById("intruder-log");
             logContainer.innerHTML = "";
+
             if (intruderLogs.length === 0) {
                 logContainer.innerHTML = '<p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No intruders detected yet.</p>';
                 return;
             }
+
             intruderLogs.forEach(log => {
                 const item = document.createElement("div");
                 item.className = "log-item";
@@ -463,16 +469,17 @@
 
         function addIntruderLog(timeStr, imageB64) {
             intruderLogs.unshift({ time: timeStr, image: imageB64 });
-            if (intruderLogs.length > 20) intruderLogs.pop(); // Keep only last 20 logs to save storage space
+            // keep array small so localstorage doesn't crash from base64 sizes
+            if (intruderLogs.length > 20) intruderLogs.pop();
+
             localStorage.setItem('intruderLogs', JSON.stringify(intruderLogs));
             renderIntruderLogs();
             showNotificationBanner(timeStr, imageB64);
         }
 
-        // Run on startup
-        renderIntruderLogs();
+        renderIntruderLogs(); // load saved logs immediately
 
-        // --- 4. CHART.JS LOGIC ---
+        // --- chart stuff for dashboard ---
         let chartInstance = null;
         function initChart() {
             const ctx = document.getElementById('loginChart').getContext('2d');
@@ -491,10 +498,12 @@
         }
 
         function updateChart(statsData) {
-            localStorage.setItem('loginStats', JSON.stringify(statsData)); // Cache for startup
+            // cache data incase python is offline when page loads
+            localStorage.setItem('loginStats', JSON.stringify(statsData));
             if (!chartInstance) initChart();
 
-            const dates = Object.keys(statsData).sort().slice(-5); // Keep to last 5 days so it fits nicely
+            // grab last 5 dates
+            const dates = Object.keys(statsData).sort().slice(-5);
             const users = new Set();
             dates.forEach(d => Object.keys(statsData[d]).forEach(u => users.add(u)));
 
@@ -511,11 +520,12 @@
             chartInstance.update();
         }
 
+        // load chart from cache if available
         const savedStats = JSON.parse(localStorage.getItem('loginStats'));
         if (savedStats) {
             updateChart(savedStats);
         } else {
-            initChart(); // Draw empty chart on startup if no cache
+            initChart();
         }
     </script>
 </body>

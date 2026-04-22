@@ -8,6 +8,7 @@ body {
   overflow: hidden;
 }
 
+/* little dot to show where the camera is hidden */
 #camera-dot {
   width: 10px;
   height: 10px;
@@ -46,7 +47,7 @@ body {
   box-sizing: border-box;
 }
 
-/* ======== INTERACT.JS DRAG STYLES ======== */
+/* drag and drop stuff for interact.js */
 .card {
   background: transparent;
   border: none;
@@ -61,7 +62,7 @@ body {
   position: absolute;
   touch-action: none;
   cursor: grab;
-  /* Prevents accidental text highlighting while pinching */
+
   user-select: none;
   -webkit-user-select: none;
 }
@@ -72,7 +73,6 @@ body {
   box-shadow: 0 10px 40px rgba(0, 242, 255, 0.2);
   border: 1px solid rgba(0, 242, 255, 0.4);
   border-radius: 12px;
-
 }
 
 .icon-ai {
@@ -91,7 +91,7 @@ body {
   color: #1DB954;
 }
 
-/* ======== PURE CALENDAR WIDGET ======== */
+/* calendar styles */
 #calendar {
   background: rgba(18, 18, 18, 0.85);
   border-radius: 12px;
@@ -158,7 +158,7 @@ body {
   color: white;
 }
 
-/* ======== TODO WIDGET ======== */
+/* todo list widget */
 #todo-list {
   list-style: none;
   padding: 0;
@@ -203,7 +203,7 @@ body {
   outline: none;
 }
 
-/* ======== SPOTIFY WIDGET ======== */
+/* spotify player box */
 #spotify {
   position: absolute;
   bottom: 40px;
@@ -304,7 +304,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* ======== WAVEFORM & AI TEXT ======== */
+/* waveform animation */
 #voice-interface {
   position: absolute;
   bottom: 40px;
@@ -369,7 +369,7 @@ body {
   letter-spacing: 1px;
 }
 
-/* Allows full multi-line AI responses */
+/* ai response */
 #ai-text {
   font-size: 18px;
   font-weight: 300;
@@ -377,7 +377,7 @@ body {
   color: #e0e0e0;
 }
 
-/* ======== CINEMATIC FOCUS MODE ======== */
+/* focus mode */
 #clock,
 #calendar,
 #todo,
@@ -392,7 +392,7 @@ body {
   pointer-events: none;
 }
 
-/* ======== AMBIENT LOCK SCREEN ======== */
+/* lock screen */
 body.locked-mode #ai-assistant,
 body.locked-mode #calendar,
 body.locked-mode #todo,
@@ -402,10 +402,9 @@ body.locked-mode #voice-interface {
   opacity: 0 !important;
   pointer-events: none !important;
   filter: blur(10px);
-  /* Adds a cool dissolve effect as they fade out */
 }
 
-/* Ensure widgets fade smoothly instead of instantly blinking out */
+/* smooth fade out */
 #ai-assistant,
 #calendar,
 #todo,

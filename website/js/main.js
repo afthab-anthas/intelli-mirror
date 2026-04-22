@@ -1,29 +1,33 @@
-// 1. Clock Logic
+// update the clock every second
 function updateClock() {
   const now = new Date();
   document.getElementById("time").textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   document.getElementById("date").textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
-setInterval(updateClock, 1000); updateClock();
+setInterval(updateClock, 1000);
+updateClock();
 
-// 2. Persistent Dragging (Interact.js) with Glow Feedback & Cloud Saving
+// handle drag and drop so widgets 
 interact('.draggable').draggable({
   listeners: {
-    start(event) { event.target.classList.add('is-dragging'); },
+    start(event) {
+      event.target.classList.add('is-dragging');
+    },
     move(event) {
       const target = event.target;
       const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
       const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
       target.style.transform = `translate(${x}px, ${y}px)`;
-      target.setAttribute('data-x', x); target.setAttribute('data-y', y);
+      target.setAttribute('data-x', x);
+      target.setAttribute('data-y', y);
     },
-    end(event) { 
-      event.target.classList.remove('is-dragging'); 
-      // NEW: Send the final dropped coordinates to the Python Brain
+    end(event) {
+      event.target.classList.remove('is-dragging');
+      // send the new coordinates to python 
       if (window.socket && window.socket.readyState === WebSocket.OPEN) {
-        window.socket.send(JSON.stringify({ 
-          type: "layout_save", 
-          widget_id: event.target.id, 
+        window.socket.send(JSON.stringify({
+          type: "layout_save",
+          widget_id: event.target.id,
           x: parseFloat(event.target.getAttribute('data-x')) || 0,
           y: parseFloat(event.target.getAttribute('data-y')) || 0
         }));
@@ -32,31 +36,37 @@ interact('.draggable').draggable({
   }
 });
 
-// 3. AI Waveform States & Cinematic Focus Mode
+// visual feedback for the voice assistant 
 function setAIState(state) {
   const wave = document.getElementById('waveform');
   const status = document.getElementById('ai-status-text');
   const bgWidgets = ['clock', 'calendar', 'todo', 'weather', 'spotify'];
 
   if (state === 'listening') {
-    wave.classList.add('listening'); status.textContent = "Listening...";
+    wave.classList.add('listening');
+    status.textContent = "Listening...";
     bgWidgets.forEach(id => document.getElementById(id)?.classList.add('dimmed'));
   } else if (state === 'thinking') {
-    wave.classList.remove('listening'); status.textContent = "Thinking...";
+    wave.classList.remove('listening');
+    status.textContent = "Thinking...";
     wave.style.filter = "hue-rotate(120deg)";
     bgWidgets.forEach(id => document.getElementById(id)?.classList.add('dimmed'));
   } else {
-    wave.classList.remove('listening'); status.textContent = 'Say "Hey Mirror"';
+    wave.classList.remove('listening');
+    status.textContent = 'Say "Hey Mirror"';
     wave.style.filter = "none";
     bgWidgets.forEach(id => document.getElementById(id)?.classList.remove('dimmed'));
   }
 }
 
-// 4. Notes Logic
+// todo list logic
 function createNote(text) {
-  const li = document.createElement('li'); li.className = 'note-item';
+  const li = document.createElement('li');
+  li.className = 'note-item';
   li.innerHTML = `<span class="note-text"><i class="fa-regular fa-circle"></i> ${text}</span><i class="fas fa-trash delete-btn"></i>`;
+
   li.querySelector('.note-text').onclick = () => li.classList.toggle('completed');
+
   li.querySelector('.delete-btn').onclick = () => {
     li.remove();
     if (window.socket && window.socket.readyState === WebSocket.OPEN) {
@@ -65,71 +75,100 @@ function createNote(text) {
   };
   return li;
 }
+
+
 document.getElementById('note-input').onkeypress = (e) => {
   if (e.key === 'Enter' && e.target.value.trim()) {
     const task = e.target.value.trim();
-    document.getElementById('todo-list').appendChild(createNote(task)); e.target.value = '';
+    document.getElementById('todo-list').appendChild(createNote(task));
+    e.target.value = '';
+
     if (window.socket && window.socket.readyState === WebSocket.OPEN) {
       window.socket.send(JSON.stringify({ type: "todo_add", task: task }));
     }
   }
 };
 
-// 5. Spotify Live Ticker Engine
+// spotify progress bar
 let localProgressMs = 0, localDurationMs = 1, isPlaying = false;
+
 function formatTime(ms) {
   const totalSecs = Math.floor(ms / 1000);
   return `${Math.floor(totalSecs / 60)}:${(totalSecs % 60).toString().padStart(2, '0')}`;
 }
+
 function updateSpotifyProgress() {
   document.getElementById("spotify-progress").style.width = `${(localProgressMs / localDurationMs) * 100}%`;
   document.getElementById("progress-time").textContent = formatTime(localProgressMs);
   document.getElementById("total-time").textContent = formatTime(localDurationMs);
 }
+
 setInterval(() => {
-  if (isPlaying && localProgressMs < localDurationMs) { localProgressMs += 1000; updateSpotifyProgress(); }
+  if (isPlaying && localProgressMs < localDurationMs) {
+    localProgressMs += 1000;
+    updateSpotifyProgress();
+  }
 }, 1000);
 
-// 6. Pure Visual Calendar Builder
+// calendar grid
 function renderStaticCalendar() {
-  const now = new Date(), year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+
   document.getElementById('cal-month-title').textContent = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month];
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let startOffset = firstDay === 0 ? 6 : firstDay - 1;
 
-  const grid = document.getElementById('calendar-grid'); grid.innerHTML = '';
-  let week = document.createElement('div'); week.className = 'calendar-row';
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
 
-  for (let i = 0; i < startOffset; i++) week.appendChild(document.createElement('div'));
+  let week = document.createElement('div');
+  week.className = 'calendar-row';
+
+
+  for (let i = 0; i < startOffset; i++) {
+    week.appendChild(document.createElement('div'));
+  }
 
   for (let i = 1; i <= daysInMonth; i++) {
-    const dayEl = document.createElement('div'); dayEl.className = 'cal-day'; dayEl.textContent = i;
+    const dayEl = document.createElement('div');
+    dayEl.className = 'cal-day';
+    dayEl.textContent = i;
+
     if (i === today) dayEl.classList.add('today');
+
     const dotw = new Date(year, month, i).getDay();
-    if (dotw === 0 || dotw === 6) dayEl.classList.add('dim');
+    if (dotw === 0 || dotw === 6) dayEl.classList.add('dim'); // dim weekends
 
     week.appendChild(dayEl);
+
     if (week.children.length === 7 || i === daysInMonth) {
       if (i === daysInMonth && week.children.length < 7) {
         const diff = 7 - week.children.length;
         for (let j = 0; j < diff; j++) week.appendChild(document.createElement('div'));
       }
       grid.appendChild(week);
-      week = document.createElement('div'); week.className = 'calendar-row';
+      week = document.createElement('div');
+      week.className = 'calendar-row';
     }
   }
 }
-renderStaticCalendar(); setInterval(renderStaticCalendar, 3600000);
+renderStaticCalendar();
+setInterval(renderStaticCalendar, 3600000); // refresh every hour
 
-// 7. WebSocket Integration
+// connect to the python backend websocket
 window.socket = new WebSocket("ws://127.0.0.1:8765");
-window.socket.onopen = () => console.log("Connected to Python Backend!");
+
+window.socket.onopen = () => console.log("connected to python backend!");
+
 window.socket.onmessage = (event) => {
   const d = JSON.parse(event.data);
-  
-  // --- NEW: Ambient Lock Screen Toggle ---
+
+  // lock screen mode
   if (d.is_locked !== undefined) {
     if (d.is_locked) {
       document.body.classList.add('locked-mode');
@@ -138,13 +177,13 @@ window.socket.onmessage = (event) => {
     }
   }
 
-  // --- NEW: Dynamic User Greeting & Layout Loading ---
+  // update name
   if (d.username) {
     document.getElementById("username").textContent = d.username;
   }
-  
+
+  // load saved layout coordinates
   if (d.layout) {
-    // Apply saved coordinates to elements
     for (const [id, coords] of Object.entries(d.layout)) {
       const el = document.getElementById(id);
       if (el) {
@@ -158,24 +197,34 @@ window.socket.onmessage = (event) => {
   if (d.temp) document.getElementById("temp").textContent = d.temp;
   if (d.ai_state) setAIState(d.ai_state);
 
+  // show what the ai is saying
   if (d.ai_text) {
-    const aiEl = document.getElementById("ai-text"); aiEl.textContent = d.ai_text;
+    const aiEl = document.getElementById("ai-text");
+    aiEl.textContent = d.ai_text;
+
     if (window.aiTextTimeout) clearTimeout(window.aiTextTimeout);
-    window.aiTextTimeout = setTimeout(() => { aiEl.textContent = "Ready for your command."; }, 8000);
+    window.aiTextTimeout = setTimeout(() => {
+      aiEl.textContent = "Ready for your command.";
+    }, 8000);
   }
 
+  // spotify updates
   if (d.song) {
     document.getElementById("song-name").textContent = d.song;
     document.getElementById("artist-name").textContent = d.artist || "";
     if (d.album_art) document.getElementById("album-art").src = d.album_art;
     if (d.progress_ms !== undefined) {
-      localProgressMs = d.progress_ms; localDurationMs = d.duration_ms;
-      isPlaying = d.is_playing; updateSpotifyProgress();
+      localProgressMs = d.progress_ms;
+      localDurationMs = d.duration_ms;
+      isPlaying = d.is_playing;
+      updateSpotifyProgress();
     }
   }
 
+  // update the notes list
   if (d.todos) {
-    const list = document.getElementById('todo-list'); list.innerHTML = "";
+    const list = document.getElementById('todo-list');
+    list.innerHTML = "";
     d.todos.forEach(task => list.appendChild(createNote(task)));
   }
 };
