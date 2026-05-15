@@ -465,7 +465,7 @@ def unified_vision_thread():
 
                     # intruder logic & Admin Approval Flow
                     if new_user == "Unknown":
-                        if not pending_approval and (time.time() - last_intruder_alert_time > 30):
+                        if recognized_user is None and not pending_approval and (time.time() - last_intruder_alert_time > 30):
                             last_intruder_alert_time = time.time()
                             print("Unknown face detected. Capturing and sending request...")
                             
