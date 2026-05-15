@@ -463,40 +463,49 @@ def unified_vision_thread():
                     else:
                         new_user = "Unknown"
 
-                    # intruder logic & Admin Approval Flow
+                    # Timeout pending approval after 60 seconds so a new request can be sent
+                    if pending_approval and (time.time() - last_intruder_alert_time > 60):
+                        pending_approval = False
+                        print("Previous join request timed out after 1 minute.")
+
                     if new_user == "Unknown":
-                        if recognized_user is None and not pending_approval and (time.time() - last_intruder_alert_time > 30):
-                            last_intruder_alert_time = time.time()
-                            print("Unknown face detected. Capturing and sending request...")
-                            
-                            # compress image to b64 string
-                            small_frame = cv2.resize(latest_frame, (320, 240))
-                            _, buffer = cv2.imencode('.jpg', small_frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-                            img_b64 = base64.b64encode(buffer).decode('utf-8')
-                            
-                            # 1. Send MQTT security alert
-                            if security_enforced:
-                                payload = {
-                                    "type": "intruder",
-                                    "time": datetime.datetime.now().strftime("%I:%M:%S %p"),
-                                    "image": f"data:image/jpeg;base64,{img_b64}"
-                                }
-                                mqtt_client.publish(TOPIC_ALERTS, json.dumps(payload))
+                        unknown_consecutive_frames += 1
+                        if unknown_consecutive_frames >= 3:
+                            if recognized_user is None and not pending_approval and (time.time() - last_intruder_alert_time > 30):
+                                last_intruder_alert_time = time.time()
+                                print("Unknown face detected. Capturing and sending request...")
                                 
-                            # 2. Upload to Firebase for Admin Approval
-                            if db: 
-                                db.collection('security_requests').add({
-                                    "name": "Unknown",
-                                    "status": "pending",
-                                    "image": f"data:image/jpeg;base64,{img_b64}",
-                                    "timestamp": firestore.SERVER_TIMESTAMP
-                                })
+                                # compress image to b64 string
+                                small_frame = cv2.resize(latest_frame, (320, 240))
+                                _, buffer = cv2.imencode('.jpg', small_frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+                                img_b64 = base64.b64encode(buffer).decode('utf-8')
+                                
+                                # 1. Send MQTT security alert
+                                if security_enforced:
+                                    payload = {
+                                        "type": "intruder",
+                                        "time": datetime.datetime.now().strftime("%I:%M:%S %p"),
+                                        "image": f"data:image/jpeg;base64,{img_b64}"
+                                    }
+                                    mqtt_client.publish(TOPIC_ALERTS, json.dumps(payload))
+                                    
+                                # 2. Upload to Firebase for Admin Approval
+                                if db: 
+                                    db.collection('security_requests').add({
+                                        "name": "Unknown",
+                                        "status": "pending",
+                                        "image": f"data:image/jpeg;base64,{img_b64}",
+                                        "timestamp": firestore.SERVER_TIMESTAMP
+                                    })
+                                
+                                pending_approval = True
+                                speech_queue.put("I don't recognize you. Sent a join request to the owner.")
                             
-                            pending_approval = True
-                            speech_queue.put("I don't recognize you. Sent a join request to the owner.")
-                        
-                        recognized_user = None 
+                            # Only log out the active user if an unknown face has been blocking them for a while (e.g. 5 seconds)
+                            if time.time() - last_seen_time > 5:
+                                recognized_user = None 
                     else:
+                        unknown_consecutive_frames = 0
                         # normal login
                         pending_approval = False
                         if recognized_user != new_user:
