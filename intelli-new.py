@@ -814,7 +814,7 @@ def ask_gemini(text_query):
         try:
             # prompt regex forcing gemini to return purely json
             prompt = f"{sys_aw}EXTREMELY STRICT RULES: Output ONLY a single raw JSON object. NO markdown, NO text. Action mappings -> Add: {{\"intent\": \"add\", \"summary\": \"X\", \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM:00\"}}. Delete: {{\"intent\": \"delete\", \"summary\": \"X\"}}. Read: {{\"intent\": \"read\"}}.\nUser: {text_query}"
-            res = client.models.generate_content(model='gemma-3-4b-it', contents=prompt).text
+            res = client.models.generate_content(model='gemini-3.1-flash-lite', contents=prompt).text
             import re
             match = re.search(r'\{.*\}', res, re.DOTALL)
             if match: 
@@ -826,7 +826,7 @@ def ask_gemini(text_query):
     if any(k in query_lower.split() for k in ["todo", "task", "list", "buy", "remind", "finish", "delete", "cancel", "to-do", "tasks", "lists"]):
         try:
             prompt = f"{sys_aw}EXTREMELY STRICT RULES: Output ONLY a single raw JSON object. NO markdown, NO conversational text. Action mappings -> Add: {{\"intent\": \"add\", \"task\": \"...\"}}. Delete: {{\"intent\": \"delete\", \"task\": \"...\"}}. Read: {{\"intent\": \"read\"}}. Clear: {{\"intent\": \"clear\"}}.\nUser: {text_query}"
-            res = client.models.generate_content(model='gemma-3-4b-it', contents=prompt).text
+            res = client.models.generate_content(model='gemini-3.1-flash-lite', contents=prompt).text
             import re
             match = re.search(r'\{.*\}', res, re.DOTALL)
             if match: 
@@ -852,7 +852,7 @@ def ask_gemini(text_query):
 
     # 5. Default Chat fallback
     try:
-        res = client.models.generate_content(model='gemma-3-4b-it', contents=f"{sys_aw}Keep responses brief and conversational (1-2 sentences).\nUser: {text_query}")
+        res = client.models.generate_content(model='gemini-3.1-flash-lite', contents=f"{sys_aw}Keep responses brief and conversational (1-2 sentences).\nUser: {text_query}")
         speech_queue.put(res.text.strip())
     except: 
         speech_queue.put("I am having trouble connecting to my brain right now.")
