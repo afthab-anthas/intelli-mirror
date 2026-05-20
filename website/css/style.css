@@ -413,3 +413,58 @@ body.locked-mode #voice-interface {
 #voice-interface {
   transition: opacity 0.8s ease, filter 0.8s ease, transform 0.4s ease-out;
 }
+
+/* Pomodoro Timer widget style */
+#pomodoro-timer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(18, 18, 18, 0.9);
+  border-radius: 20px;
+  padding: 30px 40px;
+  text-align: center;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+
+#pomodoro-timer .pomodoro-title {
+  font-size: 20px;
+  color: #ff5e57;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#pomodoro-timer #pomodoro-time {
+  font-size: 80px;
+  font-weight: bold;
+  font-family: 'Segoe UI', monospace;
+  color: white;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Study Mode transitions & blur */
+body.study-mode #clock,
+body.study-mode #main-container,
+body.study-mode #voice-interface,
+body.study-mode #camera-dot {
+  opacity: 0.1 !important;
+  filter: blur(10px) !important;
+  pointer-events: none !important;
+}
+
+#clock,
+#main-container,
+#voice-interface,
+#camera-dot {
+  transition: opacity 0.8s ease, filter 0.8s ease;
+}

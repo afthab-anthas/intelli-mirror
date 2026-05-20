@@ -227,4 +227,89 @@ window.socket.onmessage = (event) => {
     list.innerHTML = "";
     d.todos.forEach(task => list.appendChild(createNote(task)));
   }
+
+  // pomodoro timer message handler
+  if (d.type === "start_timer") {
+    startPomodoroTimer(d.minutes);
+  }
 };
+
+let pomodoroInterval = null;
+
+function playChime() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const playTone = (freq, startTime, duration) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.5, startTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    
+    // Sleek dual-tone chime
+    playTone(523.25, audioCtx.currentTime, 1.0); // C5
+    playTone(659.25, audioCtx.currentTime + 0.35, 1.5); // E5
+  } catch (e) {
+    console.log("Audio synthesis not supported or blocked: ", e);
+  }
+}
+
+function startPomodoroTimer(minutes) {
+  const timerDiv = document.getElementById("pomodoro-timer");
+  const timeDisplay = document.getElementById("pomodoro-time");
+  
+  if (!timerDiv || !timeDisplay) return;
+  
+  if (pomodoroInterval) {
+    clearInterval(pomodoroInterval);
+  }
+  
+  timerDiv.style.display = "block";
+  timerDiv.style.opacity = "1";
+  
+  // Blur everything else by adding study-mode class to body
+  document.body.classList.add("study-mode");
+  
+  let totalSeconds = minutes * 60;
+  
+  function updateTimerDisplay() {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    timeDisplay.textContent = `${m}:${s}`;
+  }
+  
+  updateTimerDisplay();
+  
+  pomodoroInterval = setInterval(() => {
+    totalSeconds--;
+    if (totalSeconds < 0) {
+      clearInterval(pomodoroInterval);
+      pomodoroInterval = null;
+      
+      // Hide widget gracefully
+      timerDiv.style.opacity = "0";
+      setTimeout(() => {
+        timerDiv.style.display = "none";
+      }, 500);
+      
+      // Restore standard background
+      document.body.classList.remove("study-mode");
+      
+      // Play chime
+      playChime();
+    } else {
+      updateTimerDisplay();
+    }
+  }, 1000);
+}

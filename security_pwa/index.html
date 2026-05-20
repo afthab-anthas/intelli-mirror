@@ -35,21 +35,27 @@
             display: block;
         }
 
-        input[type="password"] {
+        input[type="password"],
+        input[type="text"] {
             width: 100%;
             padding: 15px;
-            margin: 20px 0;
+            margin: 10px 0;
             border-radius: 10px;
             border: none;
-            font-size: 24px;
-            text-align: center;
+            font-size: 16px;
             box-sizing: border-box;
             background: #0f172a;
             color: white;
             outline: none;
         }
 
-        input[type="password"]:focus {
+        input[type="password"] {
+            font-size: 24px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        input:focus {
             border: 1px solid #0ea5e9;
         }
 
@@ -133,7 +139,7 @@
             transform: translateX(26px);
         }
 
-        /* cards for the graph and logs */
+        /* cards */
         hr {
             border: none;
             height: 1px;
@@ -159,7 +165,7 @@
             margin-bottom: 15px;
         }
 
-        /* scrollable intruder list */
+        /* scrollable lists */
         .log-container {
             max-height: 250px;
             overflow-y: auto;
@@ -188,12 +194,19 @@
             animation: slideIn 0.3s ease-out;
         }
 
+        .log-item.pending {
+            border-left: 4px solid #f59e0b;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
         .log-item img {
             width: 70px;
             height: 50px;
             object-fit: cover;
             border-radius: 6px;
             border: 1px solid #334155;
+            cursor: pointer;
         }
 
         .log-details {
@@ -218,7 +231,7 @@
             }
         }
 
-        /* popup alert animation */
+        /* popups & modals */
         #toast {
             visibility: hidden;
             min-width: 250px;
@@ -265,7 +278,6 @@
             }
         }
 
-        /* popup for clicking images */
         #image-modal {
             display: none;
             position: fixed;
@@ -291,12 +303,25 @@
             margin-top: 20px;
             padding: 10px 30px;
             background: #ef4444;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
             width: auto;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            font-size: 14px;
+            padding: 10px;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            font-size: 14px;
+            padding: 10px;
         }
     </style>
 </head>
@@ -326,6 +351,14 @@
             <hr>
 
             <div class="widget-box">
+                <h3 style="color: #f59e0b;">⏳ Pending Approvals</h3>
+                <div class="log-container" id="pending-requests">
+                    <p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No pending requests.
+                    </p>
+                </div>
+            </div>
+
+            <div class="widget-box">
                 <h3 style="color: #ef4444;">🚨 Intruder Snapshots</h3>
                 <div class="log-container" id="intruder-log">
                     <p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No intruders
@@ -349,15 +382,10 @@
     </div>
 
     <script>
-        // pin login check
         const CORRECT_PIN = "1234";
-
         function checkPin() {
-            const input = document.getElementById("pin-input").value;
-            if (input === CORRECT_PIN) {
-                // ask for phone push notifications if they support it
+            if (document.getElementById("pin-input").value === CORRECT_PIN) {
                 if ("Notification" in window) Notification.requestPermission();
-
                 document.getElementById("pin-screen").style.display = "none";
                 document.getElementById("dashboard-screen").style.display = "block";
                 connectMQTT();
@@ -367,39 +395,28 @@
             }
         }
 
-        // mqtt config
         let client;
         const TOPIC_MODE = "intellimirror_77x9/security_mode";
         const TOPIC_ALERTS = "intellimirror_77x9/alerts";
 
         function connectMQTT() {
-            // connecting to public broker via websockets
             client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
-
             client.on("connect", () => {
                 document.getElementById("mqtt-status").innerHTML = 'MQTT: <span style="color: #10b981;">Connected</span>';
                 client.subscribe(TOPIC_ALERTS);
             });
-
             client.on("message", (topic, message) => {
                 try {
                     const data = JSON.parse(message.toString());
-                    if (data.type === "intruder") {
-                        addIntruderLog(data.time, data.image);
-                    } else if (data.type === "stats") {
-                        updateChart(data.data);
-                    }
-                } catch (e) {
-                    // fallback if python just sends a plain text alert
-                    if (message.toString() === "INTRUDER_DETECTED") showToast();
-                }
+                    if (data.type === "intruder") addIntruderLog(data.time, data.image);
+                    else if (data.type === "stats") updateChart(data.data);
+                } catch (e) { }
             });
         }
 
         function toggleSecurity() {
             const isEnforced = document.getElementById("security-toggle").checked;
             const modeText = document.getElementById("mode-text");
-
             if (isEnforced) {
                 modeText.innerText = "ENFORCED MODE";
                 modeText.style.color = "#10b981";
@@ -412,53 +429,25 @@
         }
 
         function showNotificationBanner(timeStr, imageB64) {
-            // trigger actual phone notification if allowed
             if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("🚨 Mirror Security Alert", {
-                    body: `Intruder detected at ${timeStr}. Check dashboard.`,
-                    icon: imageB64
-                });
+                new Notification("🚨 Mirror Security Alert", { body: `Intruder detected at ${timeStr}.`, icon: imageB64 });
             }
-
-            // inject custom html into the toast popup so it shows the picture
             const toast = document.getElementById("toast");
-            toast.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="openImageModal('${imageB64}')">
-                    <img src="${imageB64}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;">
-                    <div style="text-align: left;">
-                        <div style="font-weight: bold; font-size: 15px;">🚨 Intruder Detected</div>
-                        <div style="font-size: 12px; color: #f1f5f9; margin-top: 3px;">Tap to view • ${timeStr}</div>
-                    </div>
-                </div>`;
+            toast.innerHTML = `<div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="openImageModal('${imageB64}')">
+                <img src="${imageB64}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                <div style="text-align: left;"><div style="font-weight: bold; font-size: 15px;">🚨 Intruder Detected</div><div style="font-size: 12px; margin-top: 3px;">${timeStr}</div></div></div>`;
             toast.className = "show";
-
-            // hide after 5 seconds
             setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 5000);
         }
 
-        // --- local storage cache for logs so we don't lose them on reload ---
         let intruderLogs = JSON.parse(localStorage.getItem('intruderLogs')) || [];
-
         function renderIntruderLogs() {
             const logContainer = document.getElementById("intruder-log");
             logContainer.innerHTML = "";
-
-            if (intruderLogs.length === 0) {
-                logContainer.innerHTML = '<p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No intruders detected yet.</p>';
-                return;
-            }
-
+            if (intruderLogs.length === 0) { logContainer.innerHTML = '<p style="color: #64748b; font-size: 13px; text-align: center;">No intruders detected yet.</p>'; return; }
             intruderLogs.forEach(log => {
-                const item = document.createElement("div");
-                item.className = "log-item";
-                item.innerHTML = `
-                    <img src="${log.image}" alt="Intruder" style="cursor: pointer;" onclick="openImageModal('${log.image}')">
-                    <div class="log-details">
-                        <strong>Unknown Face</strong>
-                        <div class="log-time">${log.time}</div>
-                    </div>
-                `;
-                logContainer.appendChild(item);
+                logContainer.innerHTML += `<div class="log-item"><img src="${log.image}" onclick="openImageModal('${log.image}')">
+                    <div class="log-details"><strong>Unknown Face</strong><div class="log-time">${log.time}</div></div></div>`;
             });
         }
 
@@ -469,64 +458,105 @@
 
         function addIntruderLog(timeStr, imageB64) {
             intruderLogs.unshift({ time: timeStr, image: imageB64 });
-            // keep array small so localstorage doesn't crash from base64 sizes
             if (intruderLogs.length > 20) intruderLogs.pop();
-
             localStorage.setItem('intruderLogs', JSON.stringify(intruderLogs));
             renderIntruderLogs();
             showNotificationBanner(timeStr, imageB64);
         }
+        renderIntruderLogs();
 
-        renderIntruderLogs(); // load saved logs immediately
-
-        // --- chart stuff for dashboard ---
         let chartInstance = null;
         function initChart() {
             const ctx = document.getElementById('loginChart').getContext('2d');
             chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: [], datasets: [] },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-                    },
-                    plugins: { legend: { labels: { color: '#cbd5e1', font: { family: '-apple-system' } } } }
-                }
+                type: 'bar', data: { labels: [], datasets: [] },
+                options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } }, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
             });
         }
 
         function updateChart(statsData) {
-            // cache data incase python is offline when page loads
             localStorage.setItem('loginStats', JSON.stringify(statsData));
             if (!chartInstance) initChart();
-
-            // grab last 5 dates
             const dates = Object.keys(statsData).sort().slice(-5);
             const users = new Set();
             dates.forEach(d => Object.keys(statsData[d]).forEach(u => users.add(u)));
-
             const colors = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6'];
-            const datasets = Array.from(users).map((user, i) => ({
-                label: user,
-                data: dates.map(date => statsData[date][user] || 0),
-                backgroundColor: colors[i % colors.length],
-                borderRadius: 4
-            }));
-
             chartInstance.data.labels = dates;
-            chartInstance.data.datasets = datasets;
+            chartInstance.data.datasets = Array.from(users).map((user, i) => ({ label: user, data: dates.map(date => statsData[date][user] || 0), backgroundColor: colors[i % colors.length], borderRadius: 4 }));
             chartInstance.update();
         }
-
-        // load chart from cache if available
         const savedStats = JSON.parse(localStorage.getItem('loginStats'));
-        if (savedStats) {
-            updateChart(savedStats);
-        } else {
-            initChart();
-        }
+        if (savedStats) updateChart(savedStats); else initChart();
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4DjIgtfnhDzeShiFOMKiikfG008XzM9Q",
+            authDomain: "intelli-211a0.firebaseapp.com",
+            databaseURL: "https://intelli-211a0-default-rtdb.firebaseio.com",
+            projectId: "intelli-211a0",
+            storageBucket: "intelli-211a0.firebasestorage.app",
+            messagingSenderId: "1054391898850",
+            appId: "1:1054391898850:web:dbb340bb749d0b65d944bb"
+        };
+
+        // Initialize Firebase old-school way
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Listen for "pending" requests in real-time
+        db.collection("security_requests").where("status", "==", "pending")
+            .onSnapshot((snapshot) => {
+                const container = document.getElementById('pending-requests');
+                container.innerHTML = '';
+
+                if (snapshot.empty) {
+                    container.innerHTML = '<p style="color: #64748b; font-size: 13px; text-align: center; margin: 20px 0;">No pending requests.</p>';
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    container.innerHTML += `
+                    <div class="log-item pending">
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <img src="${data.image}" onclick="openImageModal('${data.image}')">
+                            <div class="log-details">
+                                <strong>Unknown Face Detected</strong>
+                                <div class="log-time">Awaiting approval...</div>
+                            </div>
+                        </div>
+                        <input type="text" id="name-${docSnap.id}" placeholder="Enter Name (e.g. Afthab)">
+                        <div class="action-btns">
+                            <button class="btn-approve" onclick="window.approveRequest('${docSnap.id}')">Approve</button>
+                            <button class="btn-reject" onclick="window.rejectRequest('${docSnap.id}')">Reject</button>
+                        </div>
+                    </div>
+                `;
+                });
+            });
+
+        // Attach Firebase functions to the window so HTML buttons can use them
+        window.approveRequest = async (docId) => {
+            const nameInput = document.getElementById(`name-${docId}`).value.trim();
+            if (!nameInput) return alert("You must enter a name to approve this user!");
+
+            await db.collection("security_requests").doc(docId).update({
+                status: "approved",
+                name: nameInput
+            });
+            alert(`Approved! The mirror is now scanning ${nameInput}'s face.`);
+        };
+
+        window.rejectRequest = async (docId) => {
+            if (confirm("Reject and delete this request?")) {
+                await db.collection("security_requests").doc(docId).delete();
+            }
+        };
     </script>
 </body>
 

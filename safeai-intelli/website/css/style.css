@@ -1,0 +1,470 @@
+body {
+  margin: 0;
+  background: black;
+  color: white;
+  font-family: 'Segoe UI', sans-serif;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* little dot to show where the camera is hidden */
+#camera-dot {
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#clock {
+  text-align: center;
+  width: 100%;
+  margin-top: 60px;
+  position: absolute;
+}
+
+#time {
+  font-size: 100px;
+  font-weight: bold;
+}
+
+#date {
+  font-size: 24px;
+  color: #888;
+  margin-top: 5px;
+}
+
+#main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* drag and drop stuff for interact.js */
+.card {
+  background: transparent;
+  border: none;
+  padding: 20px;
+  width: 320px;
+  margin-bottom: 20px;
+  text-shadow: 0px 4px 15px rgba(0, 0, 0, 0.9);
+  transition: transform 0.4s ease-out;
+}
+
+.draggable {
+  position: absolute;
+  touch-action: none;
+  cursor: grab;
+
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.draggable.is-dragging {
+  cursor: grabbing;
+  z-index: 100;
+  box-shadow: 0 10px 40px rgba(0, 242, 255, 0.2);
+  border: 1px solid rgba(0, 242, 255, 0.4);
+  border-radius: 12px;
+}
+
+.icon-ai {
+  color: #00f2ff;
+}
+
+.icon-todo {
+  color: #ffcc00;
+}
+
+.icon-weather {
+  color: #ffae00;
+}
+
+.icon-spotify {
+  color: #1DB954;
+}
+
+/* calendar styles */
+#calendar {
+  background: rgba(18, 18, 18, 0.85);
+  border-radius: 12px;
+  padding: 16px 20px;
+  width: 340px;
+  backdrop-filter: blur(10px);
+  text-shadow: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.calendar-header {
+  margin-bottom: 15px;
+}
+
+#cal-month-title {
+  font-size: 22px;
+  font-weight: 500;
+  color: #ff5e57;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  color: #fff;
+  font-weight: 600;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.calendar-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #333;
+}
+
+.calendar-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.cal-day {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 34px;
+  height: 34px;
+  margin: auto;
+  border-radius: 50%;
+}
+
+.cal-day.dim {
+  color: #6b6f76;
+}
+
+.cal-day.today {
+  background: #ff5e57;
+  color: white;
+}
+
+/* todo list widget */
+#todo-list {
+  list-style: none;
+  padding: 0;
+}
+
+.note-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.note-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.note-item.completed .note-text {
+  text-decoration: line-through;
+  color: #555;
+}
+
+.note-item.completed .fa-circle::before {
+  content: "\f058";
+  color: #1DB954;
+}
+
+.delete-btn {
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+#note-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #333;
+  color: white;
+  width: 100%;
+  margin-top: 10px;
+  outline: none;
+}
+
+/* spotify player box */
+#spotify {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  background: rgba(18, 18, 18, 0.85);
+  border-radius: 12px;
+  padding: 16px;
+  width: 340px;
+  backdrop-filter: blur(10px);
+  text-shadow: none;
+}
+
+.spotify-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #fff;
+}
+
+.icon-spotify {
+  color: #1DB954;
+  font-size: 20px;
+}
+
+.spotify-content {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 15px;
+}
+
+#album-art {
+  width: 65px;
+  height: 65px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.track-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+  width: 100%;
+}
+
+#song-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+#artist-name {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #b3b3b3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.progress-container {
+  margin-top: 15px;
+  width: 100%;
+}
+
+#spotify .playback-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#spotify .progress {
+  width: 0%;
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+.time-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #b3b3b3;
+  margin-top: 6px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* waveform animation */
+#voice-interface {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.waveform {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  height: 40px;
+  margin-bottom: 10px;
+}
+
+.waveform span {
+  width: 4px;
+  height: 10px;
+  background: #00f2ff;
+  border-radius: 2px;
+  transition: 0.3s;
+}
+
+.listening span {
+  animation: wave 1s infinite ease-in-out;
+}
+
+.listening span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.listening span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.listening span:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.listening span:nth-child(5) {
+  animation-delay: 0.6s;
+}
+
+@keyframes wave {
+
+  0%,
+  100% {
+    height: 10px;
+  }
+
+  50% {
+    height: 40px;
+  }
+}
+
+#ai-status-text {
+  font-size: 12px;
+  color: #00f2ff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ai response */
+#ai-text {
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: #e0e0e0;
+}
+
+/* focus mode */
+#clock,
+#calendar,
+#todo,
+#weather,
+#spotify {
+  transition: opacity 0.4s ease-in-out, filter 0.4s ease-in-out;
+}
+
+.dimmed {
+  opacity: 0.15;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* lock screen */
+body.locked-mode #ai-assistant,
+body.locked-mode #calendar,
+body.locked-mode #todo,
+body.locked-mode #weather,
+body.locked-mode #spotify,
+body.locked-mode #voice-interface {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  filter: blur(10px);
+}
+
+/* smooth fade out */
+#ai-assistant,
+#calendar,
+#todo,
+#weather,
+#spotify,
+#voice-interface {
+  transition: opacity 0.8s ease, filter 0.8s ease, transform 0.4s ease-out;
+}
+
+/* Pomodoro Timer widget style */
+#pomodoro-timer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(18, 18, 18, 0.9);
+  border-radius: 20px;
+  padding: 30px 40px;
+  text-align: center;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+
+#pomodoro-timer .pomodoro-title {
+  font-size: 20px;
+  color: #ff5e57;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#pomodoro-timer #pomodoro-time {
+  font-size: 80px;
+  font-weight: bold;
+  font-family: 'Segoe UI', monospace;
+  color: white;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Study Mode transitions & blur */
+body.study-mode #clock,
+body.study-mode #main-container,
+body.study-mode #voice-interface,
+body.study-mode #camera-dot {
+  opacity: 0.1 !important;
+  filter: blur(10px) !important;
+  pointer-events: none !important;
+}
+
+#clock,
+#main-container,
+#voice-interface,
+#camera-dot {
+  transition: opacity 0.8s ease, filter 0.8s ease;
+}
