@@ -17,3 +17,5 @@ env/
 
 # OS Files
 .DS_Store
+# Axis Pulse — config contains agent token
+.pulse/
