@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mirror Security PWA</title>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -339,7 +339,7 @@
 
         <div id="dashboard-screen">
             <h2>Security Panel</h2>
-            <div class="status" id="mqtt-status">MQTT: <span style="color: #f59e0b;">Connecting...</span></div>
+            <div class="status" id="mqtt-status">MQTT: <span style="color: #64748b;">Disabled</span></div>
 
             <label class="switch">
                 <input type="checkbox" id="security-toggle" onchange="toggleSecurity()">
@@ -382,13 +382,13 @@
     </div>
 
     <script>
-        const CORRECT_PIN = "1234";
+        const CORRECT_PIN = "1109";
         function checkPin() {
             if (document.getElementById("pin-input").value === CORRECT_PIN) {
                 if ("Notification" in window) Notification.requestPermission();
                 document.getElementById("pin-screen").style.display = "none";
                 document.getElementById("dashboard-screen").style.display = "block";
-                connectMQTT();
+                // connectMQTT(); // MQTT disabled
             } else {
                 document.getElementById("pin-error").style.display = "block";
                 document.getElementById("pin-input").value = "";
@@ -420,11 +420,11 @@
             if (isEnforced) {
                 modeText.innerText = "ENFORCED MODE";
                 modeText.style.color = "#10b981";
-                client.publish(TOPIC_MODE, "ENFORCED");
+                // client.publish(TOPIC_MODE, "ENFORCED"); // MQTT disabled
             } else {
                 modeText.innerText = "NORMAL MODE";
                 modeText.style.color = "#ef4444";
-                client.publish(TOPIC_MODE, "NORMAL");
+                // client.publish(TOPIC_MODE, "NORMAL"); // MQTT disabled
             }
         }
 
