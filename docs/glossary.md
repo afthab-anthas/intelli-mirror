@@ -1,847 +1,680 @@
-# PlusPoint EDU - Comprehensive Domain Glossary
+# Glossary
 
-## 1. Domain-Specific Terms and Definitions
-
-### A
-
-**Agent Code** (Referral Code)
-A unique code assigned to brokers/agents that allows students to register using their referral link. Validated against the `code-database` table during registration.
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 48-59)
-- Reference: `AccountController::addReferralCode()` in `app/Http/Controllers/AccountController.php` (line 481-492)
-
-**Application Tracking**
-A feature that allows students to track their application status through a dedicated portal for international university admissions.
-- Reference: `README.md` (line 31)
-
-**Abroad Education**
-International higher education pursued in countries such as UK, Germany, Romania, Canada, Australia, New Zealand, Singapore, Malaysia, UAE, and India.
-- Reference: `README.md` (line 14)
-
-### B
-
-**Broker**
-A user role representing educational consultants or agents who guide students through the admissions process. Brokers can use agent codes to register students.
-- Reference: `AccountController::authenticate()` in `app/Http/Controllers/AccountController.php` (line 115)
-- Reference: `routes/web.php` (line 37)
-
-**Blog Categories**
-Organizational groupings for blog content stored in the `blog_categories` table, allowing categorization of educational articles.
-- Reference: `blogsController::addCategory()` in `app/Http/Controllers/blogsController.php` (line 72-83)
-
-**Blog Content**
-Educational articles and resources published on the platform, stored in the `blogs` table with HTML-formatted content.
-- Reference: `blogsController::uploadBlog()` in `app/Http/Controllers/blogsController.php` (line 85-145)
-
-### C
-
-**Citizenship**
-A user's country of citizenship, stored as a profile attribute in the users table.
-- Reference: `AccountController::updateProfile()` in `app/Http/Controllers/AccountController.php` (line 179)
-- Reference: `app/Exports/UsersExport.php` (line 21)
-
-**Code Database**
-A database table (`code-database`) that stores valid referral codes and their descriptions for broker registration validation.
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 53)
-
-**Contact Form**
-A public-facing form for inquiries and feedback from prospective students and other visitors.
-- Reference: `ContactFormController::submit()` in `app/Http/Controllers/ContactFormController.php` (line 10)
-
-**Country Code**
-International dialing code prefix for mobile phone numbers in contact forms.
-- Reference: `ContactFormController::submit()` in `app/Http/Controllers/ContactFormController.php` (line 14)
-
-### D
-
-**Date of Birth (DOB)**
-User's birth date, required to be at least 10 years before the current date for profile registration.
-- Reference: `AccountController::updateProfile()` in `app/Http/Controllers/AccountController.php` (line 177)
-
-**Degree**
-Academic degree type (Associate, Bachelor's, Master's, Professional, Doctorate, Vocational) conditionally stored based on education level.
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 242-246)
-
-**Designation**
-Professional title or position held by a user, stored as a nullable field in the users table.
-- Reference: `database/migrations/0001_01_01_000000_create_users_table.php` (line 19)
-
-### E
-
-**Education Level**
-The current or target level of education (e.g., Associate Degree, Bachelor's Degree, Master's Degree, etc.).
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 227)
-
-**Education Level Interest**
-The preferred level of higher education a student is interested in pursuing.
-- Reference: `AccountController::updateProfilePrefrences()` in `app/Http/Controllers/AccountController.php` (line 310)
-
-**Education Country**
-The country where a student completed or is completing their current education.
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 228)
-
-**English Proficiency**
-Assessment of English language ability (IELTS, TOEFL, etc.), with conditional sub-scores for listening, writing, reading, and speaking.
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 232)
-
-**English Listening/Writing/Reading/Speaking**
-Individual component scores for English language proficiency tests.
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 251-259)
-
-### G
-
-**Graduation Status**
-Current status of academic completion (graduated, currently studying, etc.).
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 229)
-
-**Gender**
-User's gender identity, required field in user profile.
-- Reference: `AccountController::updateProfile()` in `app/Http/Controllers/AccountController.php` (line 182)
-
-### H
-
-**Higher Education Country Preferences**
-Three priority countries selected by students for pursuing higher education.
-- Reference: `AccountController::updateProfilePrefrences()` in `app/Http/Controllers/AccountController.php` (line 305-307)
-
-### I
-
-**Institution**
-The educational institution where a student completed or is completing their education.
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 230)
-
-### M
-
-**Major**
-The field of study or academic discipline pursued by a student.
-- Reference: `AccountController::updateProfileEdu()` in `app/Http/Controllers/AccountController.php` (line 262)
-
-**Major Interest**
-The preferred field of study for higher education.
-- Reference: `AccountController::updateProfilePrefrences()` in `app/Http/Controllers/AccountController.php` (line 308)
-
-**Mobile**
-User's phone number, stored as a nullable field in the users table.
-- Reference: `database/migrations/0001_01_01_000000_create_users_table.php` (line 21)
-
-### P
-
-**Passport**
-User's passport number, required unique field for international student identification.
-- Reference: `AccountController::updateProfile()` in `app/Http/Controllers/AccountController.php` (line 180)
-
-**Passport Expiry**
-The expiration date of a user's passport.
-- Reference: `AccountController::updateProfile()` in `app/Http/Controllers/AccountController.php` (line 181)
-
-**Profile Picture**
-User's avatar image stored in the `profile_pic` directory with thumbnail generation.
-- Reference: `AccountController::updateprofilePic()` in `app/Http/Controllers/AccountController.php` (line 369-401)
-
-### R
-
-**Referral Code**
-See Agent Code.
-
-**Residency**
-User's country of residence.
-- Reference: `AccountController::updateProfile()` in `app/Http/Controllers/AccountController.php` (line 183)
-
-**Role**
-User classification: admin, broker, or student. Determines access levels and dashboard views.
-- Reference: `AccountController::authenticate()` in `app/Http/Controllers/AccountController.php` (line 115-127)
+> Every term is sourced from an actual file read during this session. No definition is invented.
 
 ---
 
-## 2. Technical Terms Unique to This Project
+## Domain Concepts
 
-### A
+**Axis Pulse** — A single-organisation AI workflow intelligence platform. Captures Claude Code hook events and manual status entries, runs AI narration, and presents results on a per-project dashboard. Source: `notes/axis-pulse-archdoc.md`.
 
-**Admin Dashboard**
-Administrative interface for managing users, referral codes, and blog content. Accessible only to users with 'admin' role.
-- Reference: `AccountController::profileAdmin()` in `app/Http/Controllers/AccountController.php` (line 410)
+**P-number** — A numbered prompt template (e.g. P34 Context Building). Stored as a `Prompt` row with a unique `pNumber` integer per org. Auto-detection uses Jaccard similarity >= 0.6 against each prompt fingerprint. Source: `src/lib/pnumber-matcher.ts:59`.
 
-**Admin Portal**
-Dedicated section for administrators to manage referral codes and system configuration.
-- Reference: `AccountController::adminPortalView()` in `app/Http/Controllers/AccountController.php` (line 424-431)
+**Free workflow** — Dashboard label when a session matched no active Prompt at Jaccard >= 0.6. Stored as `pNumberDetected = null`. Source: `src/lib/narrate.ts:203`.
 
-**Authenticate**
-Laravel authentication method that validates user credentials against the users table.
-- Reference: `AccountController::authenticate()` in `app/Http/Controllers/AccountController.php` (line 109)
+**Ingest** — Receiving a Claude Code hook event (`POST /api/ingest/event`) or time poll (`POST /api/ingest/time`), running redaction, P-number matching, and persisting an `ActivityEvent` or `MemberDailyTime` row. Source: `src/app/api/ingest/event/route.ts`.
 
-### B
+**Narration** — A 3-4 sentence plain-English AI brief generated by Groq Llama 3.3 70B (`llama-3.3-70b-versatile`) and stored as an `Intelligence` row. Gated by delta gating and a 90-second cooldown. Source: `src/lib/narrate.ts:103`.
 
-**Blade Template**
-Laravel's templating engine used for rendering views with PHP syntax.
-- Reference: `resources/views/` directory structure
+**Delta gating** — Narration is skipped when the new event inputHash equals the latest `Intelligence.inputHash` for the same project. Prevents redundant AI calls. Source: `src/lib/narrate.ts:112`.
 
-**Blog Edit Portal**
-Admin interface for uploading, managing, and deleting blog posts.
-- Reference: `blogsController::blogsAdmin()` in `app/Http/Controllers/blogsController.php` (line 65-75)
+**inputHash** — SHA-256 hex digest of `pNumberDetected | lastCommitSha | filesChangedBucket | sessionExcerpt | gitSummary | eventKind | repoContextRefreshedAt`. Unique constraint on `(projectId, inputHash)` in `Intelligence`. Source: `src/lib/narrate.ts:86`.
 
-### C
+**Cooldown** — 90-second minimum gap between narration calls per project. Constant `COOLDOWN_MS = 90_000`. Tracked in an in-memory `Map<projectId, timestamp>`. Source: `src/lib/narrate.ts:17`.
 
-**Code-Database Table**
-Custom database table storing referral codes and descriptions for broker validation.
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 53)
+**Executive Summary** — Manager-triggered single-paragraph rollup of the last 5 `Intelligence` rows plus recent manual statuses. Includes a self-reported `confidence` float (0-1). Streamed via `streamText` from `@ai-sdk/groq` (`llama-3.3-70b-versatile`), not Anthropic. Persisted as an `ExecutiveSummary` row on completion. Source: `src/app/api/projects/[id]/summary/route.ts`.
 
-### D
+**Manual status** — Slack-style text posted by a member via `POST /api/status`. Persisted as `ActivityEvent` with `kind = MANUAL_STATUS`. Subject to redaction. Source: `notes/axis-pulse-archdoc.md §2`.
 
-**Database Migration**
-Laravel schema definition files that create and manage database table structures.
-- Reference: `database/migrations/0001_01_01_000000_create_users_table.php`
+**pulse-send.mjs** — Script at `.pulse/pulse-send.mjs`. Invoked by Claude Code hooks (`PostToolUse`, `Stop`, `UserPromptSubmit`); reads git state, redacts session text, HMAC-signs the payload, and POSTs to `/api/ingest/event`. Source: `notes/axis-pulse-archdoc.md §9`.
 
-### E
+**pulse-time.mjs** — Scheduled script at `.pulse/pulse-time.mjs`. Runs every 5 minutes; polls local ActivityWatch, applies productive-rule matching locally, POSTs only `{ day, timezone, workedSeconds, productiveSeconds, unproductiveSeconds, topApps }`. Source: `src/lib/pulse-body-shape.ts:3`.
 
-**Eloquent ORM**
-Laravel's Object-Relational Mapping system for database interactions.
-- Reference: `app/Models/User.php` (line 11)
+**ActivityWatch** — Open-source MIT-licensed cross-platform desktop client (activitywatch.net). Records focused-window and AFK state locally; exposes a REST API at `localhost:5600`. Not bundled or modified by Pulse. Source: `notes/axis-pulse-archdoc.md §7.1`.
 
-**Email Verification**
-Laravel's email verification feature for confirming user email addresses.
-- Reference: `database/migrations/0001_01_01_000000_create_users_table.php` (line 17)
+**Repository Context Layer** — Optional module linking a Project to a GitHub repository and storing a structural snapshot (`repoSnapshot`) used as additional narration context. Does not index full source code. Source: `src/lib/repo-context/index.ts`.
 
-### F
+**Repository snapshot** — Bounded JSON blob (<=8 KB) in `Project.repoSnapshot` containing `topLevelTree` (<=20 entries), `keyConfigs` (<=8 redacted config excerpts), `detectedFrameworks`, and `generatedAt`. Source: `src/lib/repo-context/snapshot.ts:47`.
 
-**Flash Message**
-Session-based temporary message displayed to users after form submission.
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 73)
+**frameworkDetector** — Deterministic function at `src/lib/repo-context/snapshot.ts:196` detecting Next.js, NestJS, Nuxt.js, SvelteKit, Astro, Vite, Express, Fastify, React, FastAPI, Django, Flask, Poetry, Gin, Fiber, Actix Web, Axum, and container types from keyConfigs.
 
-### G
+**KEY_CONFIG_ALLOWLIST** — Fixed filenames eligible for snapshot fetching: `package.json`, `tsconfig.json`, `pyproject.toml`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`, `Dockerfile`, `docker-compose.yml`, `next.config.*`, `vite.config.*`, `nest-cli.json`, `nuxt.config.*`, `astro.config.*`, `svelte.config.js`, `README.md`. Source: `src/lib/repo-context/snapshot.ts:8`.
 
-**Guard**
-Laravel authentication guard configuration defining how users are authenticated (session-based in this project).
-- Reference: `config/auth.php` (line 33-37)
+**tenantKey** — Nullable string reserved on all top-level entities for a future multi-tenant migration. Currently unused. Source: `prisma/schema.prisma`.
 
-### H
+**organisationId** — Foreign key linking every row to its parent `Organisation`. Used for org-scoped Prisma queries. Source: `prisma/schema.prisma:89`.
 
-**Hash**
-Laravel's password hashing using bcrypt algorithm for secure password storage.
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 70)
+**Presence state** — Derived status: `active` (last activity <=30 min), `idle` (<=2 hours), `offline` (>2 hours). Constants `ACTIVE_THRESHOLD_MS = 1_800_000`, `IDLE_THRESHOLD_MS = 7_200_000`. Source: `src/lib/presence.ts`.
 
-### I
+**Verdict** — Computed project health roll-up. Values: `on_track`, `needs_attention`, `at_risk`. Derived from risk level, activity recency, AI intel age, and Claude Code spend. Source: `src/lib/project-verdict.ts:9`.
 
-**ImageManager**
-Intervention Image library for image processing and thumbnail generation.
-- Reference: `AccountController::updateprofilePic()` in `app/Http/Controllers/AccountController.php` (line 387-391)
+**Exception flags** — Discrete warning chips in the "Needs a Look" panel. Operational flags have IDs `high-risk`, `cost-spike`, `stall-no-activity`, `stall-no-cost`, `repo-stale` with severities `high` or `medium`. Security findings are rendered as a separate grouped section (`SecurityFindingGroup[]`) rather than flat exception chips. The `ExceptionFlag` type carries an optional `source` field for the originating tool. Source: `src/lib/project-exceptions.ts`.
 
-### M
+**SecurityFindingGroup** — Display-only grouping of `SecurityFinding` DB rows by `ruleId`. Each group carries: `ruleId` (string), `label` (plain-English title from `RULE_LABELS` map, falling back to the last dotted segment of the ruleId), `severity` (highest severity across all occurrences in the group), `tool` (e.g. `"semgrep"`, `"gitleaks"`), and `occurrences` (count of deduplicated file+line pairs). INFO-severity findings are excluded from groups. Source: `src/lib/project-exceptions.ts` (`groupSecurityFindings`).
 
-**Mailable**
-Laravel class for defining email messages with templates.
-- Reference: `app/Mail/ContactMail.php` (line 10)
+**groupSecurityFindings** — Pure function in `src/lib/project-exceptions.ts` that converts a flat `SecurityFinding[]` into a `SecurityFindingGroup[]`. De-duplication: occurrences with the same file+line are collapsed within the group (display-collapse only — nothing is dropped from the DB). Sorting: CRITICAL/HIGH groups first, then MEDIUM/LOW. `RULE_LABELS` maps known ruleIds to plain-English strings; unknown ruleIds fall back to title-casing the last dotted segment. Source: `src/lib/project-exceptions.ts`.
 
-**Middleware**
-Laravel request/response filters that handle authentication and authorization.
-- Reference: `routes/web.php` (line 31-32)
+**Feed summary** — 5-8 word action phrase generated by Anthropic Haiku (or free model fallback) for a completed `Stop` event. Stored in `ActivityEvent.feedSummary`. Shown in the dashboard activity feed. Source: `src/lib/gemini.ts`.
 
-### P
+**anthropicKeyHint** — Obscured display of an org's Anthropic API key (e.g. `sk-ant-api0...abcd`). Stored on `Organisation.anthropicKeyHint`. Only shown to MANAGERs on the install page; never the raw key. Set by `POST /api/admin/org/anthropic-key`.
 
-**Password Reset Token**
-Temporary token stored in `password_reset_tokens` table for password recovery.
-- Reference: `AccountController::processForgotPassword()` in `app/Http/Controllers/AccountController.php` (line 506-514)
+**Consent version** — Integer on `TimeTrackingConsent`. v1 = aggregate seconds only; v2 = includes top app names. A v1-only consent is stale for v2 scope and triggers re-acknowledgement. Source: `prisma/schema.prisma:303`.
 
-**PDF Parser**
-Smalot PdfParser library for extracting text content from PDF documents.
-- Reference: `blogsController::uploadBlog()` in `app/Http/Controllers/blogsController.php` (line 110-113)
+**topApps** — Optional JSON on `MemberDailyTime`. Stores top-2 productive and top-2 unproductive apps (by seconds) for a day. Only persisted when `consentVersion = 2`. Source: `src/lib/pulse-body-shape.ts:3`.
 
-**PhpWord**
-PHPOffice library for converting DOCX documents to HTML content.
-- Reference: `blogsController::uploadBlog()` in `app/Http/Controllers/blogsController.php` (line 104-109)
+**Scale tier** — Env-var `SCALE_TIER` controlling rate-limit multipliers. Values: `0.5x` -> multiplier 1, `1x` -> multiplier 1, `4x` -> multiplier 4. Source: `src/lib/ratelimit.ts:5`.
 
-### R
+**userIdHint** — Email in ingest payloads for legacy tokens with no known owner. Resolved to `userId` by org-scoped email lookup. Source: `src/app/api/ingest/event/route.ts:19`.
 
-**Remember Token**
-Laravel token for "remember me" functionality in authentication.
-- Reference: `database/migrations/0001_01_01_000000_create_users_table.php` (line 20)
+**sourceMessageUuid** — UUID sent with Stop events as a dedup key. Unique constraint on `(projectId, sourceMessageUuid)`; duplicate firings are silently ignored. Source: `prisma/schema.prisma:223`.
 
-### S
-
-**Session**
-Database-backed session storage for maintaining user state across requests.
-- Reference: `config/session.php` (line 16)
-
-**Session Table**
-Database table (`sessions`) storing active user sessions.
-- Reference: `database/migrations/0001_01_01_000000_create_users_table.php` (line 33-41)
-
-### U
-
-**UsersExport**
-Excel export class for exporting user data with all profile attributes.
-- Reference: `app/Exports/UsersExport.php` (line 1)
-
-### V
-
-**Validator**
-Laravel's form validation class for validating request data.
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 34)
+**sessionVersion** — Integer on `User` bumped to invalidate sessions. JWT carries the version at login; `withAuthScoped` compares to DB on every request. Source: `src/lib/withAuthScoped.ts:48`.
 
 ---
 
-## 3. Abbreviations and Acronyms
+## Roles & Permissions
 
-| Abbreviation | Full Form | Context | Reference |
-|---|---|---|---|
-| **API** | Application Programming Interface | Web service endpoints for data exchange | `routes/web.php` |
-| **BCRYPT** | Blowfish Cipher | Password hashing algorithm | `.env.example` (line 11) |
-| **CSRF** | Cross-Site Request Forgery | Security protection mechanism | `config/session.php` (line 180) |
-| **CSV** | Comma-Separated Values | Data export format | `app/Exports/UsersExport.php` |
-| **DB** | Database | Laravel database facade | `AccountController.php` (line 16) |
-| **DOB** | Date of Birth | User birth date field | `AccountController.php` (line 177) |
-| **DOCX** | Office Open XML Document | Microsoft Word format | `blogsController.php` (line 100) |
-| **ENV** | Environment | Configuration file for application settings | `.env.example` |
-| **GD** | Graphics Draw | Image processing driver | `AccountController.php` (line 387) |
-| **HTML** | HyperText Markup Language | Web page markup language | `blogsController.php` (line 104) |
-| **HTTP** | HyperText Transfer Protocol | Web communication protocol | `config/session.php` (line 166) |
-| **HTTPS** | HTTP Secure | Encrypted web communication | `config/session.php` (line 149) |
-| **IELTS** | International English Language Testing System | English proficiency test | `AccountController.php` (line 232) |
-| **JSON** | JavaScript Object Notation | Data format for API responses | `AccountController.php` (line 77) |
-| **MAIL** | Mail Service | Email delivery system | `AccountController.php` (line 18) |
-| **MVC** | Model-View-Controller | Architectural pattern | `bootstrap/app.php` |
-| **MySQL** | My Structured Query Language | Relational database system | `config/database.php` (line 32) |
-| **ORM** | Object-Relational Mapping | Database abstraction layer | `app/Models/User.php` |
-| **PDF** | Portable Document Format | Document format | `blogsController.php` (line 110) |
-| **PHP** | PHP: Hypertext Preprocessor | Server-side scripting language | `composer.json` (line 6) |
-| **SMTP** | Simple Mail Transfer Protocol | Email transmission protocol | `config/mail.php` (line 36) |
-| **SQL** | Structured Query Language | Database query language | `config/database.php` |
-| **TOEFL** | Test of English as a Foreign Language | English proficiency test | `AccountController.php` (line 232) |
-| **TLS** | Transport Layer Security | Encryption protocol | `config/mail.php` (line 41) |
-| **URL** | Uniform Resource Locator | Web address | `config/app.php` (line 46) |
-| **UTF-8** | Unicode Transformation Format | Character encoding standard | `config/database.php` (line 49) |
-| **XLSX** | Office Open XML Spreadsheet | Excel format | `AccountController.php` (line 600) |
+**MANAGER** — Org-level role. `teamId = null`. Full access: all projects, all member time data, team CRUD, role changes, global productive rules, agent tokens, exec summaries, PDF exports, audit log, budget dashboard, repo context refresh, `timeTrackingEnabled` toggle. Source: `src/lib/withAuthScoped.ts:52`.
+
+**LINE_MANAGER (LM)** — Team-scoped manager. `teamId IS NOT NULL`, `isLineManager = true`. Exactly one per team (second promotion -> HTTP 409). Sees own team's projects, activity, and member time. Can rotate team tokens, trigger exec summaries, produce PDF exports, add team-scoped productive-rule overrides. Cannot toggle `timeTrackingEnabled` or edit global rules. Source: `notes/axis-pulse-archdoc.md §2`.
+
+**MEMBER** — Team-scoped engineer. `teamId IS NOT NULL`. Sees own team's projects and teammates' activity. Time data: own only — teammates' time stripped server-side by response serializer (`canSeeTimeData = false`). Can post own manual statuses and override P-number on own events. Source: `src/lib/withAuthScoped.ts:54`.
+
+**AuthContext** — Resolved identity from `withAuthScoped()`. Shape: `{ userId, organisationId, role, teamId, isLineManager, scope }`. Used by every route handler for tenancy and visibility. Source: `src/lib/withAuthScoped.ts:28`.
+
+**AuthScope** — Sub-object on AuthContext. Fields: `allTeams: boolean` (true = MANAGER only), `canSeeTimeData: boolean` (false = MEMBER), `viewedTeamIds: string[]` (empty for MANAGER, one entry for LM/MEMBER). Source: `src/lib/withAuthScoped.ts:22`.
+
+**canSeeTimeData** — `true` for MANAGER and LINE_MANAGER; `false` for MEMBER. When false, the response serializer omits the `time` block from member-card payloads. Source: `src/lib/withAuthScoped.ts:54`.
+
+**isLineManager** — Boolean field on `Membership`. `true` only when `Membership.role = LINE_MANAGER`. Guards LM-specific actions alongside the `role` field. Sourced from `ctx.isLineManager` (resolved per-request by `withAuthScoped`). The corresponding `User.isLineManager` column was dropped in PM6. Source: `prisma/schema.prisma` (`Membership` model).
+
+**orgWhere / teamWhere** — Scoped Prisma `where` clause helpers. `orgWhere` returns `{ organisationId }`. `teamWhere` returns org-scoped for MANAGER, team+org-scoped for LINE_MANAGER, and `{ id: "__none__" }` (no results) for MEMBER. Source: `src/lib/withAuthScoped.ts:68`.
 
 ---
 
-## 4. Entity Names and Their Business Meaning
+## Data Models
 
-### Database Tables
+**Organisation** — Top-level tenant entity. Fields: `name`, `createdAt`, `updatedAt`. All other models reference `organisationId`. Source: `prisma/schema.prisma:50`.
 
-| Entity | Business Meaning | Reference |
-|---|---|---|
-| **users** | Core user entity storing student, broker, and admin profiles | `database/migrations/0001_01_01_000000_create_users_table.php` (line 13) |
-| **password_reset_tokens** | Temporary tokens for password recovery functionality | `database/migrations/0001_01_01_000000_create_users_table.php` (line 26) |
-| **sessions** | Active user session data for authentication state | `database/migrations/0001_01_01_000000_create_users_table.php` (line 33) |
-| **code-database** | Referral codes for broker registration validation | `AccountController.php` (line 53) |
-| **blog_categories** | Blog post categorization for content organization | `blogsController.php` (line 72) |
-| **blogs** | Published blog posts with HTML content and metadata | `blogsController.php` (line 85) |
-| **address** | User address information (model defined but not actively used) | `app/Models/Address.php` (line 10) |
-| **migrations** | Laravel migration tracking table | `config/database.php` (line 166) |
+**User** — Identity and authentication record. Key fields: `email` (unique), `name`, `passwordHash`, `isActive`, `failedLogins`, `lockedUntil`, `sessionVersion`, `bio`, `jobTitle`, `location`, `tenantKey`. Organisation, role, and team assignment live in `Membership` — the `role`, `teamId`, `isLineManager`, and `organisationId` columns were dropped in PM6 (migration `20260622000001_drop_user_legacy_cols`). Source: `prisma/schema.prisma` (`User` model).
 
-### Eloquent Models
+**Team** — Logical grouping of users. Key fields: `name`, `description`, `timeTrackingEnabled` (default false), `aiUsesTime` (default false), `organisationId`. Every Project belongs to exactly one Team. Source: `prisma/schema.prisma:113`.
 
-| Model | Purpose | Reference |
-|---|---|---|
-| **User** | Represents system users (students, brokers, admins) | `app/Models/User.php` |
-| **Post** | Blog post model (defined but not actively used) | `app/Models/Post.php` |
-| **Address** | User address model (defined but not actively used) | `app/Models/Address.php` |
-| **AddressCategory** | Address categorization model (defined but not actively used) | `app/Models/AddressCategory.php` |
+**Project** — Central entity for activity, intelligence, and summaries. Key fields: `name`, `description`, `clientName`, `status`, `teamId`, `agentTokenHash`, `agentTokenPreview`, `tokenLastRotated`, `previousTokenHash`, `previousTokenExpiresAt`, `devTokenBudget`, `githubRepoFullName`, `githubInstallationId`, `repoMetadata`, `repoSnapshot`, `repoContextRefreshedAt`, `repoContextStatus`, `repoContextError`, `organisationId`. Source: `prisma/schema.prisma:134`.
 
-### Mail Classes
+**Prompt** — P-number template. Key fields: `pNumber` (unique per org), `title`, `category`, `body`, `fingerprint` (normalised first ~200 chars for Jaccard matching), `isActive`, `createdBy`, `organisationId`. Source: `prisma/schema.prisma:172`.
 
-| Class | Purpose | Reference |
-|---|---|---|
-| **ContactMail** | Email notification for contact form submissions | `app/Mail/ContactMail.php` |
-| **registration_mail** | Welcome email sent to newly registered users | `app/Mail/registration_mail.php` |
-| **ResetPasswordEmail** | Password reset link email | `app/Mail/ResetPasswordEmail.php` |
-| **passwordNotification** | Confirmation email after password change | `app/Mail/passwordNotification.php` |
+**ActivityEvent** — A single Claude Code hook firing or manual status entry. Key fields: `projectId`, `userId`, `kind`, `pNumberDetected`, `promptId`, `sessionExcerpt` (<=1500 chars), `filesChanged`, `gitSummary`, `gitCommitSha`, `manualText`, `hookSource`, `feedSummary`, `redactionCount`, `claudeInputTokens`, `claudeOutputTokens`, `claudeCacheCreateTokens`, `claudeCacheReadTokens`, `claudeModel`, `claudeSpendUSD`, `sourceMessageUuid`, `ingestedAt`. Source: `prisma/schema.prisma:195`.
 
-### Controllers
+**Intelligence** — AI-generated narration record. Key fields: `projectId`, `triggeringEventId`, `inputHash`, `headline`, `narration`, `stage`, `riskLevel` (default "LOW"), `riskFocus`, `modelUsed`, `inputTokens`, `outputTokens`, `generatedAt`. Unique on `(projectId, inputHash)`. Source: `prisma/schema.prisma:238`.
 
-| Controller | Business Function | Reference |
-|---|---|---|
-| **AccountController** | User registration, authentication, profile management, admin functions | `app/Http/Controllers/AccountController.php` |
-| **blogsController** | Blog content management, categorization, upload/delete | `app/Http/Controllers/blogsController.php` |
-| **ContactFormController** | Contact form submission and email notification | `app/Http/Controllers/ContactFormController.php` |
-| **HomeController** | Home page rendering | `app/Http/Controllers/HomeController.php` |
-| **AboutController** | About page rendering | `app/Http/Controllers/AboutController.php` |
-| **StudentsController** | Students listing page | `app/Http/Controllers/StudentsController.php` |
-| **EmailController** | Email sending utilities | `app/Http/Controllers/EmailController.php` |
+**ExecutiveSummary** — Manager-triggered project rollup. Key fields: `projectId`, `body`, `confidence` (float 0-1), `generatedBy`, `modelUsed`, `inputTokens`, `outputTokens`, `generatedAt`. Source: `prisma/schema.prisma:360`.
+
+**AuditLogEntry** — Immutable log row for privileged actions. Key fields: `userId`, `action`, `subjectId`, `meta` (JSON), `ipAddress`, `organisationId`, `at`. Source: `prisma/schema.prisma:263`.
+
+**ProjectMember** — Join table between Project and User. Composite PK `(projectId, userId)`. Field: `joinedAt`. Source: `prisma/schema.prisma:283`.
+
+**TimeTrackingConsent** — Disclosure acknowledgement. Fields: `userId` (unique), `notifiedAt`, `acknowledgedAt` (null until clicked), `consentVersion`. Source: `prisma/schema.prisma:295`.
+
+**MemberDailyTime** — One row per `(userId, day)`. Fields: `workedSeconds`, `productiveSeconds`, `unproductiveSeconds`, `idleSeconds` (compat only), `offlineSeconds` (compat only), `topApps` (JSON, v2 consent), `timezone`, `source` (default "activitywatch"), `lastIngestAt`. Source: `prisma/schema.prisma:309`.
+
+**Membership** — One row per `(user, organisation)` pair. **The sole source of truth for role, team, and org assignment (PM6).** `withAuthScoped` performs a composite-indexed `findUnique` on `(userId, organisationId)` for every authenticated request — the row IS the credential and the RBAC authority. The JWT's `activeOrganisationId` is a hint; a tampered hint resolves to no row → 401. Backfilled atomically by the PM2 migration; signup creates User+Membership in a single `$transaction`; management routes write role/team changes exclusively here. Login picks the user's first **ACTIVE** Membership by `createdAt ASC` and stamps its `organisationId` into the JWT. `status` is `ACTIVE` (full access) or `PENDING` (invited, no access) — PM5. Fields: `userId`, `organisationId`, `role` (default `MEMBER`), `teamId?`, `isLineManager` (default false), `status` (default `ACTIVE`), `createdAt`, `updatedAt`. Composite unique on `(userId, organisationId)`; cascade on User and Organisation delete, SetNull on Team delete. Source: `prisma/schema.prisma` (`Membership` model); `src/lib/withAuthScoped.ts` (the lookup).
+
+**PM3 data-plane** — The set of changes (Phase 2 + Phase 3 + Phase 3b) that made `Membership` the single source of truth for member listing and management writes, completing what PM3 Phase 1 started for the auth-plane. **Phase 2:** `GET /api/admin/members` queries `Membership(status=ACTIVE)` not `User.organisationId`; `role`/`isLineManager` in responses come from the Membership row. **Phase 3:** promote/demote/role/assign-to-team/remove-from-team/PATCH[id] write `role`, `teamId`, `isLineManager` to `Membership` — never to `User`. `User.sessionVersion` is still incremented on role changes (JWT invalidation). **Phase 3b:** activate/deactivate/card routes use `Membership` composite-key lookup for existence check and LINE_MANAGER team boundary; `User.isActive` is still the field that controls account access. Q21 last-manager guard uses `membership.count(status=ACTIVE, role=MANAGER)`, not `user.count`. **PM6 (ADR-028):** the corresponding `User.role`/`teamId`/`isLineManager`/`organisationId` columns were dropped — what was a convention is now a compile-time guarantee. Verified by `pm3-data-plane-listing.test.ts`, `pm3-last-manager-guard.test.ts`, `pm3-member-management-membership.test.ts`.
+
+**activeOrganisationId** (PM3) — The JWT claim that hints which of a user's memberships is "active" for the current session. Semantically **untrusted**: `withAuthScoped` treats it as a forgeable hint and only accepts it after verifying a `Membership(userId, organisationId)` row exists. Replaces the pre-PM3 `organisationId` JWT claim, which was trusted directly. Set by `/api/auth/login` from `db.membership.findFirst({ where: { userId }, orderBy: { createdAt: "asc" } })`.
+
+**ProductiveAppRule** — App/URL classifier. Key fields: `pattern`, `matchType`, `category`, `isProductive` (default true), `scope`, `teamId` (null when GLOBAL), `isActive`, `createdBy`, `organisationId`. Source: `prisma/schema.prisma:336`.
+
+**Invitation** — Pre-registration record. Key fields: `invitedEmail`, `teamId`, `role`, `status`, `invitedBy`, `organisationId`. Source: `prisma/schema.prisma:381`.
+
+**AgentToken** — Per-developer, per-project bearer token. Key fields: `projectId`, `userId` (null for legacy backfilled), `label`, `tokenHash` (bcrypt), `tokenPreview` (last 4 chars), `revokedAt` (null = active). Source: `prisma/schema.prisma:407`.
+
+**UserToken** — Per-user machine-wide bearer token (one per user). Key fields: `userId` (unique), `tokenHash`, `tokenPreview`, `organisationId`. Used by `pulse-time.mjs` on the UserToken auth path. Source: `prisma/schema.prisma:431`.
+
+**GithubInstallation** — Links an Organisation to a GitHub App installation. Key fields: `organisationId`, `installationId`, `accountName`, `status` (ACTIVE|INVALID). Source: `prisma/schema.prisma:453`.
 
 ---
 
-## 5. API Terminology and Conventions
+## Enum Values
 
-### Route Naming Conventions
+### Role
+- `MANAGER` — Org-level administrator. No team membership.
+- `LINE_MANAGER` — Team-scoped manager. Exactly one per team.
+- `MEMBER` — Team-scoped engineer. Default role.
 
-Routes follow Laravel's dot-notation naming convention for organization:
+Source: `prisma/schema.prisma:10`.
 
-| Route Name | HTTP Method | Purpose | Reference |
-|---|---|---|---|
-| **account.registration** | GET | Display registration form | `routes/web.php` (line 29) |
-| **account.processRegistration** | POST | Process user registration | `routes/web.php` (line 30) |
-| **account.login** | GET | Display login form | `routes/web.php` (line 31) |
-| **account.authenticate** | POST | Authenticate user credentials | `routes/web.php` (line 32) |
-| **account.profile** | GET | Display user profile | `routes/web.php` (line 38) |
-| **account.profile.edu** | GET | Display education profile section | `routes/web.php` (line 39) |
-| **account.profile.prefrences** | GET | Display education preferences section | `routes/web.php` (line 40) |
-| **account.update-profile** | PUT | Update user profile information | `routes/web.php` (line 41) |
-| **account.update-profile-edu** | PUT | Update education information | `routes/web.php` (line 42) |
-| **account.update-profile-prefrences** | PUT | Update education preferences | `routes/web.php` (line 43) |
-| **account.updateprofilepic** | POST | Update profile picture | `routes/web.php` (line 44) |
-| **account.profile.admin** | GET | Display admin dashboard | `routes/web.php` (line 51) |
-| **account.profile.admin.users** | GET | Display admin users management | `routes/web.php` (line 52) |
-| **account.profile.admin.portal** | GET | Display admin portal | `routes/web.php` (line 53) |
-| **admin.addReferralCode** | POST | Add new referral code | `routes/web.php` (line 57) |
-| **admin.deleteReferralCode** | POST | Delete referral code | `routes/web.php` (line 58) |
-| **export.users** | GET | Export users to Excel | `routes/web.php` (line 59) |
-| **account.logout** | GET | Logout user | `routes/web.php` (line 61) |
+### ProjectStatus
+- `ACTIVE` — Project is live; ingest and narration are allowed.
+- `PAUSED` — Ingest is blocked (`project_not_active` 403). Verdict short-circuits to "On Track" with label "Project is paused".
+- `ARCHIVED` — Ingest blocked. Verdict short-circuits to "On Track" with label "Project is archived".
 
-### Response Format
+Source: `prisma/schema.prisma:16`, `src/lib/project-verdict.ts:37`.
 
-**JSON Response Structure for Form Submissions:**
-```json
-{
-  "status": boolean,
-  "errors": object|array,
-  "error": object|array
-}
-```
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 77-83)
+### EventKind
+- `CLAUDE_HOOK` — Event originated from a Claude Code hook (PostToolUse, Stop, or UserPromptSubmit).
+- `MANUAL_STATUS` — Event originated from a member's manual status box via `POST /api/status`.
 
-### Request Validation Rules
+Source: `prisma/schema.prisma:22`.
 
-**Password Validation Rules:**
-- Minimum 8 characters
-- At least one lowercase letter: `regex:/[a-z]/`
-- At least one uppercase letter: `regex:/[A-Z]/`
-- At least one digit: `regex:/[0-9]/`
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 40-44)
+### MatchType
+- `EXACT` — Case-insensitive exact string comparison against app/URL name.
+- `GLOB` — Simple glob with `*` wildcard matching any characters, case-insensitive.
+- `REGEX` — Case-insensitive regular expression match.
 
-**Email Validation Rules:**
-- Must be valid email format
-- Must not contain uppercase letters: `regex:/^[^A-Z]/`
-- Must be unique in users table
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 38)
+Source: `prisma/schema.prisma:27`, `src/lib/productive-rules.ts:64`.
 
-**Agent Code Validation:**
-- Optional field
-- If provided, must exist in `code-database` table
-- Reference: `AccountController::processRegistration()` in `app/Http/Controllers/AccountController.php` (line 48-59)
+### RuleScope
+- `GLOBAL` — Rule applies to all teams in the organisation. `teamId = null`. Editable by MANAGER only.
+- `TEAM` — Rule applies to one specific team. Overrides a GLOBAL rule with the same pattern. Editable by the team's LINE_MANAGER.
 
-### Middleware Groups
+Source: `prisma/schema.prisma:32`.
 
-| Middleware | Purpose | Routes | Reference |
-|---|---|---|---|
-| **guest** | Allows only unauthenticated users | Registration, login, password reset | `routes/web.php` (line 31) |
-| **auth** | Requires authenticated users | Profile, admin, logout | `routes/web.php` (line 36) |
+### RepoContextStatus
+- `NONE` — No GitHub repository linked to this project.
+- `LINKED` — Repository linked and snapshot successfully generated.
+- `REFRESHING` — Snapshot generation in progress.
+- `ERROR` — Last snapshot attempt failed. `repoContextError` holds a truncated message (max 500 chars). Narration falls back to the no-repo-context prompt.
 
----
+Source: `prisma/schema.prisma:38`, `src/lib/repo-context/index.ts`.
 
-## 6. Configuration and Environment Variable Names
+### InvitationStatus
+- `PENDING` — Invitation sent; user has not yet accepted.
+- `ACCEPTED` — User accepted the invitation and registered (or linked their existing account).
+- `DECLINED` — User explicitly declined the invitation via `POST /api/invite/decline`. Added in PM5 migration `20260621205617_invitation_status_declined`. Distinguishes "explicitly rejected" from "not yet responded."
 
-### Application Configuration
+Source: `prisma/schema.prisma:45`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **APP_NAME** | Plus Point Education | Application display name | `.env.example` (line 1) |
-| **APP_ENV** | local | Environment mode (local/production) | `.env.example` (line 2) |
-| **APP_KEY** | (empty) | Application encryption key | `.env.example` (line 3) |
-| **APP_DEBUG** | false | Debug mode toggle | `.env.example` (line 4) |
-| **APP_TIMEZONE** | UTC | Application timezone | `.env.example` (line 5) |
-| **APP_URL** | http://localhost | Application base URL | `.env.example` (line 6) |
-| **APP_LOCALE** | en | Default application language | `.env.example` (line 8) |
-| **APP_FALLBACK_LOCALE** | en | Fallback language | `.env.example` (line 9) |
-| **APP_FAKER_LOCALE** | en_US | Faker library locale | `.env.example` (line 10) |
-| **APP_MAINTENANCE_DRIVER** | file | Maintenance mode driver | `.env.example` (line 12) |
+### MembershipStatus
+Prisma enum with two values added in PM5 migration `20260621203926_membership_status`.
+- `ACTIVE` — Full membership; `withAuthScoped` resolves this row and returns an `AuthContext`.
+- `PENDING` — Invite sent to an existing user; the row grants no authenticated access. `withAuthScoped` returns `null` for PENDING rows (→ 401). Flipped to ACTIVE on invitation acceptance; deleted on decline.
 
-### Database Configuration
+Source: `prisma/schema.prisma` (`MembershipStatus` enum).
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **DB_CONNECTION** | mysql | Database driver (mysql/sqlite/pgsql/sqlsrv) | `.env.example` (line 16) |
-| **DB_HOST** | 127.0.0.1 | Database server hostname | `.env.example` (line 17) |
-| **DB_PORT** | 3306 | Database server port | `.env.example` (line 18) |
-| **DB_DATABASE** | laravel | Database name | `.env.example` (line 19) |
-| **DB_USERNAME** | root | Database user | `.env.example` (line 20) |
-| **DB_PASSWORD** | (empty) | Database password | `.env.example` (line 21) |
-| **DB_CHARSET** | utf8mb4 | Character encoding | `config/database.php` (line 49) |
-| **DB_COLLATION** | utf8mb4_unicode_ci | Character collation | `config/database.php` (line 50) |
+### PENDING Membership
+A `Membership` row with `status = PENDING`. Created atomically with an `Invitation` when an existing user is invited to an org (`POST /api/admin/invitations`). Grants no access — the status gate in `withAuthScoped` returns null for any PENDING row. Flipped to `ACTIVE` in a single `$transaction` when the user accepts (`POST /api/invite/accept`), which also bumps `User.sessionVersion`. Deleted in a `$transaction` on decline (`POST /api/invite/decline`). See ADR-026.
 
-### Session Configuration
+### pending-invitations (route)
+`GET /api/auth/pending-invitations` — returns the caller's PENDING memberships with their associated `invitationId`. Response shape: `{ memberships: [{ organisationId, organisationName, invitationId }] }`. Used by `AppShell` to compute `pendingInviteCount`; a non-zero count renders an amber indicator dot on `OrgBadge` to notify the user of outstanding invitations.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **SESSION_DRIVER** | database | Session storage driver | `.env.example` (line 23) |
-| **SESSION_LIFETIME** | 120 | Session timeout in minutes | `.env.example` (line 24) |
-| **SESSION_ENCRYPT** | false | Encrypt session data | `.env.example` (line 25) |
-| **SESSION_PATH** | / | Session cookie path | `.env.example` (line 26) |
-| **SESSION_DOMAIN** | null | Session cookie domain | `.env.example` (line 27) |
-| **SESSION_TABLE** | sessions | Session storage table | `config/session.php` (line 73) |
-| **SESSION_EXPIRE_ON_CLOSE** | true | Expire session when browser closes | `config/session.php` (line 31) |
-| **SESSION_HTTP_ONLY** | true | HTTP-only cookie flag | `config/session.php` (line 166) |
-| **SESSION_SAME_SITE** | lax | SameSite cookie attribute | `config/session.php` (line 180) |
+### GithubInstallationStatus
+- `ACTIVE` — Installation is valid and can be used to fetch tokens.
+- `INVALID` — Installation has been revoked or is otherwise unusable.
 
-### Mail Configuration
+Source: `prisma/schema.prisma:448`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **MAIL_MAILER** | log | Mail driver (smtp/log/array/sendmail) | `.env.example` (line 31) |
-| **MAIL_HOST** | 127.0.0.1 | SMTP server hostname | `.env.example` (line 32) |
-| **MAIL_PORT** | 2525 | SMTP server port | `.env.example` (line 33) |
-| **MAIL_USERNAME** | null | SMTP authentication username | `.env.example` (line 34) |
-| **MAIL_PASSWORD** | null | SMTP authentication password | `.env.example` (line 35) |
-| **MAIL_ENCRYPTION** | null | Encryption type (tls/ssl) | `.env.example` (line 36) |
-| **MAIL_FROM_ADDRESS** | hello@example.com | Default sender email | `.env.example` (line 37) |
-| **MAIL_FROM_NAME** | ${APP_NAME} | Default sender name | `.env.example` (line 38) |
+### SecuritySeverity
+- `CRITICAL` — Highest severity. Assigned to all gitleaks secret findings.
+- `HIGH` — Semgrep ERROR-level rule violations. CVSS score ≥ 9.0 in osv-scanner.
+- `MEDIUM` — Semgrep WARNING-level findings. osv-scanner MODERATE or CVSS 4.0–6.9.
+- `LOW` — osv-scanner findings with CVSS < 4.0 and no higher classification.
+- `INFO` — Semgrep informational findings and any unclassifiable scanner output.
 
-### Cache Configuration
+Source: `prisma/schema.prisma` (migration `20260615000002`), `src/lib/security-scan.ts`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **CACHE_STORE** | database | Cache driver | `.env.example` (line 43) |
-| **CACHE_PREFIX** | (empty) | Cache key prefix | `.env.example` (line 44) |
+### Stage (Intelligence.stage)
+- `early` — Only initial setup or scaffolding visible.
+- `mid` — General development progress (default when no other signal applies).
+- `hardening` — Tests or CI configuration dominate the changes.
+- `blocked` — Repeated attempts at the same area without forward progress.
+- `null` — Insufficient signal to classify.
 
-### Queue Configuration
+Source: `src/lib/narrate.ts:46`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **QUEUE_CONNECTION** | database | Queue driver | `.env.example` (line 41) |
+### riskLevel (Intelligence.riskLevel)
+- `LOW` — No clear risk signals. Default.
+- `MEDIUM` — A shared area or dependency being touched that could affect other parts.
+- `HIGH` — Core infrastructure, security, or data being changed in a way that could break things.
 
-### Broadcast Configuration
+Source: `src/lib/narrate.ts:53`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **BROADCAST_CONNECTION** | log | Broadcasting driver | `.env.example` (line 40) |
+### VerdictLevel
+- `on_track` — All signals healthy.
+- `needs_attention` — Moderate risk, stale intel, active-but-no-cost, or medium AI risk.
+- `at_risk` — HIGH AI risk signal or no activity in 3+ days.
 
-### File System Configuration
+Source: `src/lib/project-verdict.ts:9`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **FILESYSTEM_DISK** | local | Default filesystem disk | `.env.example` (line 42) |
+### PresenceState
+- `active` — Last activity within 30 minutes (`ACTIVE_THRESHOLD_MS = 1_800_000`).
+- `idle` — Last activity within 2 hours (`IDLE_THRESHOLD_MS = 7_200_000`).
+- `offline` — Last activity more than 2 hours ago or no activity recorded.
 
-### AWS Configuration (Optional)
+Source: `src/lib/presence.ts`.
 
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **AWS_ACCESS_KEY_ID** | (empty) | AWS access key | `.env.example` (line 46) |
-| **AWS_SECRET_ACCESS_KEY** | (empty) | AWS secret key | `.env.example` (line 47) |
-| **AWS_DEFAULT_REGION** | us-east-1 | AWS region | `.env.example` (line 48) |
-| **AWS_BUCKET** | (empty) | AWS S3 bucket name | `.env.example` (line 49) |
+### BudgetStatus
+- `ok` — Token usage < 80% of budget.
+- `near-limit` — Usage >= 80% and < 100%.
+- `over-budget` — Usage >= 100%.
+- `no-budget` — No budget configured (`devTokenBudget = null`).
 
-### Vite Configuration
-
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **VITE_APP_NAME** | ${APP_NAME} | Frontend app name | `.env.example` (line 52) |
-
-### Authentication Configuration
-
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **AUTH_GUARD** | web | Default authentication guard | `config/auth.php` (line 15) |
-| **AUTH_PASSWORD_BROKER** | users | Password reset broker | `config/auth.php` (line 16) |
-| **AUTH_MODEL** | App\Models\User | User model class | `config/auth.php` (line 57) |
-| **AUTH_PASSWORD_RESET_TOKEN_TABLE** | password_reset_tokens | Password reset token table | `config/auth.php` (line 93) |
-| **AUTH_PASSWORD_TIMEOUT** | 10800 | Password confirmation timeout (seconds) | `config/auth.php` (line 113) |
-
-### Logging Configuration
-
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **LOG_CHANNEL** | stack | Default log channel | `.env.example` (line 14) |
-| **LOG_STACK** | single | Log stack configuration | `.env.example` (line 15) |
-| **LOG_LEVEL** | debug | Minimum log level | `.env.example` (line 17) |
-
-### Security Configuration
-
-| Variable | Default Value | Purpose | Reference |
-|---|---|---|---|
-| **BCRYPT_ROUNDS** | 12 | Bcrypt hashing rounds | `.env.example` (line 11) |
+Source: `src/lib/budget-utils.ts:12`.
 
 ---
 
-## 7. File and Directory Naming Conventions
+## API Terminology
 
-### Controller Naming
+### Ingest event body (`POST /api/ingest/event`)
+- `projectId` — CUID of the target project.
+- `userIdHint` — Optional email for legacy token user-resolution.
+- `kind` — `CLAUDE_HOOK` or `MANUAL_STATUS`.
+- `hookSource` — `PostToolUse`, `Stop`, or `UserPromptSubmit`.
+- `sessionExcerpt` — Redacted last 1500 chars of the Claude session.
+- `filesChanged` — Array of changed file paths.
+- `gitSummary` — Commit message / status summary string.
+- `gitCommitSha` — Latest commit SHA.
+- `manualText` — Free-text manual status (MANUAL_STATUS events).
+- `claudeUsage` — Object `{ input, output, cacheCreate, cacheRead, model, cost }` from Stop hook transcript.
+- `sourceMessageUuid` — Dedup UUID for Stop events.
 
-Controllers follow the pattern `{Feature}Controller`:
-- `AccountController` - User account operations
-- `blogsController` - Blog management (note: lowercase 'b')
-- `ContactFormController` - Contact form handling
-- `HomeController` - Home page
-- `AboutController` - About page
-- `StudentsController` - Students listing
-- `EmailController` - Email utilities
+Source: `src/app/api/ingest/event/route.ts:17`.
 
-### Model Naming
+### Ingest time body (`POST /api/ingest/time`)
+- `projectId` — Optional; absent on UserToken path.
+- `userIdHint` — Optional email hint for AgentToken path.
+- `day` — ISO-8601 date at 00:00 in the member's timezone.
+- `timezone` — IANA timezone string.
+- `workedSeconds` — Total at-keyboard (non-AFK) seconds today.
+- `productiveSeconds` — Subset of workedSeconds matched by productive rules.
+- `unproductiveSeconds` — Subset of workedSeconds not matched by productive rules.
+- `topApps` — Optional. `{ productive: [{app, seconds}], unproductive: [{app, seconds}] }` (max 2 each). Only sent/stored with v2 consent.
 
-Models use singular, PascalCase naming:
-- `User` - User entity
-- `Post` - Blog post entity
-- `Address` - Address entity
-- `AddressCategory` - Address category entity
+Source: `src/app/api/ingest/time/route.ts:17`.
 
-### Mail Class Naming
+### Narration user-prompt fields
+- `Project` — Project name and detected workflow label (P-number or "Free workflow").
+- `Recent files changed` — Up to 10 file paths from `filesChanged`.
+- `Git` — `gitSummary` from the event.
+- `Last 1500 chars of session (redacted)` — `sessionExcerpt`.
+- `Recent manual statuses (up to 3)` — Last 3 MANUAL_STATUS `manualText` values.
+- `Time context (today, member-local)` — Optional line included when `Team.aiUsesTime = true`.
+- `[REPOSITORY CONTEXT]` — Optional block included when `Project.repoSnapshot` is non-null: detected frameworks, top-level layout, key config paths. Raw config bodies never sent.
 
-Mail classes use descriptive names:
-- `ContactMail` - Contact form notification
-- `registration_mail` - Registration confirmation
-- `ResetPasswordEmail` - Password reset email
-- `passwordNotification` - Password change notification
+Source: `src/lib/narrate.ts:221`.
 
-### View Path Conventions
+### Narration JSON response shape
+- `headline` — 8-12 word plain-English one-liner for card summary.
+- `narration` — 3-4 sentence plain-English brief for a non-technical manager.
+- `stage` — `early`, `mid`, `hardening`, `blocked`, or `null`.
+- `riskLevel` — `LOW`, `MEDIUM`, or `HIGH`.
+- `riskFocus` — Short plain-English phrase naming the risk, or `null` if LOW.
 
-Views follow the pattern `resources/views/{section}/{feature}.blade.php`:
-- `front.account.registration` - Registration form
-- `front.account.login` - Login form
-- `front.account.profiles.student_profile` - Student profile
-- `front.account.profiles.admin_profile` - Admin dashboard
-- `front.blog-posts.blogs` - Blog listing
-- `mail.contactNotification` - Contact email template
+Source: `src/lib/narrate.ts:65`.
 
-### Database Table Naming
+### Health endpoint (`GET /api/health`)
+- `db` — `"ok"` or `"error"` (Postgres `SELECT 1` result).
+- `lastEventAgeSeconds` — Seconds since the most recent `ActivityEvent` was ingested (null when no events exist).
+- `claudeBudgetRemaining` — Tokens remaining in the daily budget (reads `CLAUDE_DAILY_BUDGET` env var).
 
-Tables use lowercase, snake_case naming:
-- `users` - User records
-- `password_reset_tokens` - Password reset tokens
-- `sessions` - User sessions
-- `code-database` - Referral codes (note: hyphenated)
-- `blog_categories` - Blog categories
-- `blogs` - Blog posts
-- `address` - Address records
+Source: `src/app/api/health/route.ts`.
 
-### Migration File Naming
+### DashboardSummary (`GET /api/dashboard/summary`)
+- `eventsToday` — Count of `UserPromptSubmit` events since UTC midnight.
+- `activeMembers` — `{ count, names }` of members with activity in the last 30 minutes.
+- `promptsMatchedToday` — Count of events with a detected P-number today.
+- `totalActiveProjects` — Count of ACTIVE projects with activity in the last 2 hours.
+- `sparklines` — 7-day arrays: `eventsWeek`, `activeMembersWeek`, `activeProjectsWeek`, `promptsMatchedWeek`.
+- `activityFeed` — Up to 20 recent items: `{ userId, userName, activityText, projectName, minutesAgo }`.
 
-Migrations follow Laravel's timestamp convention:
-- `0001_01_01_000000_create_users_table.php` - Initial user table
-- `0001_01_01_000001_create_cache_table.php` - Cache table
-- `0001_01_01_000002_create_jobs_table.php` - Job queue table
-- `2024_08_28_060204_create_posts_table.php` - Posts table
-
----
-
-## 8. User Roles and Permissions
-
-### Role Types
-
-| Role | Access Level | Capabilities | Reference |
-|---|---|---|---|
-| **admin** | Full system access | Manage users, referral codes, blog content, view all data | `AccountController::authenticate()` (line 117) |
-| **broker** | Agent access | Register students, view assigned student profiles | `AccountController::authenticate()` (line 121) |
-| **student** | User access | Manage own profile, view educational resources | `AccountController::authenticate()` (line 125) |
-
-### Admin-Specific Routes
-
-- `/account/profile/admin` - Admin dashboard redirect
-- `/account/profile/admin/users` - User management
-- `/account/profile/admin/portal` - Referral code management
-- `/account/profile/admin/blogs` - Blog management
-- `/account/profile/admin/portal/add-referral-code` - Add referral code
-- `/account/profile/admin/portal/delete-referral-code` - Delete referral code
-- `/account/profile/admin/updloaded-files/export-users` - Export users to Excel
-
-Reference: `routes/web.php` (line 51-59)
+Source: `src/lib/dashboard.ts:16`.
 
 ---
 
-## 9. Data Validation Rules Summary
+## Configuration Parameters
 
-### User Registration Validation
-
-| Field | Rules | Error Message | Reference |
-|---|---|---|---|
-| **name** | required | (default) | `AccountController::processRegistration()` (line 35) |
-| **email** | required, email, regex:/^[^A-Z]/, unique | Email must not contain uppercase letters | `AccountController::processRegistration()` (line 36) |
-| **password** | required, min:8, regex:/[a-z]/, regex:/[A-Z]/, regex:/[0-9]/ | Must contain lowercase, uppercase, digit | `AccountController::processRegistration()` (line 39-44) |
-| **confirm_password** | required, same:password | Must match password | `AccountController::processRegistration()` (line 45) |
-| **role** | required | (default) | `AccountController::processRegistration()` (line 46) |
-| **agentCode** | nullable, custom validation | Invalid agent code | `AccountController::processRegistration()` (line 47-59) |
-
-### Profile Update Validation
-
-| Field | Rules | Reference |
-|---|---|---|
-| **name** | required, min:5 | `AccountController::updateProfile()` (line 175) |
-| **email** | required, email, unique (excluding current user) | `AccountController::updateProfile()` (line 176) |
-| **dob** | required, date, before_or_equal (10 years ago) | `AccountController::updateProfile()` (line 177) |
-| **citizenship** | required | `AccountController::updateProfile()` (line 178) |
-| **residency** | required | `AccountController::updateProfile()` (line 179) |
-| **passportExpiry** | required | `AccountController::updateProfile()` (line 180) |
-| **passport** | required, unique (excluding current user) | `AccountController::updateProfile()` (line 181) |
-| **gender** | required | `AccountController::updateProfile()` (line 182) |
-
-### Blog Upload Validation
-
-| Field | Rules | Reference |
-|---|---|---|
-| **document** | required, mimes:docx,pdf, max:2048 | `blogsController::uploadBlog()` (line 97) |
-| **title** | required | `blogsController::uploadBlog()` (line 98) |
-| **category_id** | required | `blogsController::uploadBlog()` (line 99) |
-
-### Contact Form Validation
-
-| Field | Rules | Reference |
-|---|---|---|
-| **name** | required | `ContactFormController::submit()` (line 19) |
-| **email** | required, email | `ContactFormController::submit()` (line 20) |
-| **message** | required | `ContactFormController::submit()` (line 21) |
-| **mobile** | required | `ContactFormController::submit()` (line 22) |
-
----
-
-## 10. Key Features and Their Terminology
-
-### Authentication System
-- **Registration**: User account creation with role selection
-- **Login**: Credential-based authentication
-- **Password Reset**: Token-based password recovery
-- **Session Management**: Database-backed session persistence
-- **Email Verification**: Optional email confirmation (defined but not enforced)
-
-### User Profile Management
-- **Personal Information**: Name, email, mobile, designation
-- **Identification**: Passport, citizenship, residency
-- **Education Profile**: Education level, institution, graduation status, degree
-- **Language Proficiency**: English test scores (IELTS/TOEFL) with component scores
-- **Preferences**: Higher education country preferences, major interest, education level interest
-- **Profile Picture**: Avatar with thumbnail generation
-
-### Blog Management
-- **Blog Categories**: Content organization
-- **Blog Upload**: DOCX and PDF document conversion to HTML
-- **Blog Display**: Paginated listing with category filtering
-- **Blog Deletion**: Admin-only removal of blog posts
-
-### Referral System
-- **Agent Codes**: Unique codes for broker registration
-- **Code Management**: Admin interface for adding/deleting codes
-- **Code Validation**: Verification during student registration
-
-### Data Export
-- **User Export**: Excel export of all user data with comprehensive attributes
-- **Export Format**: XLSX with headers
-
----
-
-## 11. Security-Related Terminology
-
-| Term | Definition | Reference |
-|---|---|---|
-| **Password Hashing** | Bcrypt algorithm with 12 rounds for secure password storage | `.env.example` (line 11) |
-| **CSRF Protection** | Cross-Site Request Forgery prevention via session tokens | `config/session.php` |
-| **Session Encryption** | Optional encryption of session data | `config/session.php` (line 43) |
-| **HTTP-Only Cookies** | Cookies inaccessible to JavaScript for security | `config/session.php` (line 166) |
-| **SameSite Cookies** | CSRF mitigation through cookie scope restriction | `config/session.php` (line 180) |
-| **Email Verification** | Optional email confirmation for user accounts | `database/migrations/0001_01_01_000000_create_users_table.php` (line 17) |
-| **Password Reset Token** | Time-limited token for password recovery | `database/migrations/0001_01_01_000000_create_users_table.php` (line 26) |
-| **Authentication Guard** | Session-based authentication mechanism | `config/auth.php` (line 33) |
-
----
-
-## 12. Integration and Third-Party Services
-
-| Service | Purpose | Configuration | Reference |
-|---|---|---|---|
-| **Intervention Image** | Image processing and thumbnail generation | `composer.json` (line 8) | `AccountController::updateprofilePic()` |
-| **Maatwebsite Excel** | Excel file generation and export | `composer.json` (line 11) | `AccountController::export()` |
-| **PHPOffice PhpWord** | DOCX document parsing | `composer.json` (line 12) | `blogsController::uploadBlog()` |
-| **Smalot PdfParser** | PDF document parsing | `composer.json` (line 13) | `blogsController::uploadBlog()` |
-| **Laravel UI** | Authentication scaffolding | `composer.json` (line 10) | `routes/web.php` |
-| **Laravel Tinker** | Interactive shell for debugging | `composer.json` (line 9) | Development tool |
-
----
-
-## 13. Common Patterns and Conventions
-
-### Validation Pattern
-```php
-$validator = Validator::make($request->all(), [
-    'field' => 'rule1|rule2',
-]);
-
-if ($validator->passes()) {
-    // Process valid data
-} else {
-    // Return errors
-}
-```
-Reference: `AccountController::processRegistration()` (line 34-83)
-
-### JSON Response Pattern
-```php
-return response()->json([
-    'status' => boolean,
-    'errors' => array,
-]);
-```
-Reference: `AccountController::processRegistration()` (line 77-83)
-
-### Flash Message Pattern
-```php
-session()->flash('success', 'Message text');
-return redirect()->route('route.name');
-```
-Reference: `AccountController::processRegistration()` (line 73)
-
-### Authentication Check Pattern
-```php
-if (Auth::check() && Auth::user()->role == 'admin') {
-    // Admin-only logic
-} else {
-    return redirect()->route('account.login');
-}
-```
-Reference: `AccountController::profileAdmin()` (line 410-416)
-
----
-
-## 14. File Upload and Storage
-
-### Profile Picture Storage
-- **Directory**: `public/profile_pic/`
-- **Thumbnail Directory**: `public/profile_pic/thumb/`
-- **Formats**: JPEG, PNG, JPG, GIF, SVG
-- **Max Size**: 2048 KB
-- **Thumbnail Dimensions**: 150x150 pixels
-- Reference: `AccountController::updateprofilePic()` (line 369-401)
-
-### Blog Image Storage
-- **Directory**: `storage/app/public/images/blogs-images/`
-- **Default Image**: `images/blogs-images/default-image.jpg`
-- Reference: `blogsController::uploadBlog()` (line 125-130)
-
-### Document Upload
-- **Supported Formats**: DOCX, PDF
-- **Max Size**: 2048 KB
-- **Processing**: Converted to HTML for storage
-- Reference: `blogsController::uploadBlog()` (line 97-145)
-
----
-
-## 15. Email Templates and Notifications
-
-| Email Type | Trigger | Template | Reference |
-|---|---|---|---|
-| **Registration Confirmation** | User registration | `mail.register-mail` | `AccountController::processRegistration()` (line 74) |
-| **Password Reset** | Forgot password request | `mail.forgot-password` | `AccountController::processForgotPassword()` (line 520) |
-| **Password Change Notification** | Password reset completion | `mail.passwordNotification` | `AccountController::resetPasswordUpdate()` (line 593) |
-| **Contact Form Notification** | Contact form submission | `mail.contactNotification` | `ContactFormController::submit()` (line 34) |
-
----
-
-## 16. Database Schema Terminology
-
-### User Table Fields
-
-| Field | Type | Nullable | Unique | Purpose |
+| Variable | In `.env.example` | Type | Purpose | Required |
 |---|---|---|---|---|
-| id | BIGINT | No | Yes | Primary key |
-| name | VARCHAR | No | No | User full name |
-| email | VARCHAR | No | Yes | User email address |
-| role | VARCHAR | No | No | User role (admin/broker/student) |
-| email_verified_at | TIMESTAMP | Yes | No | Email verification timestamp |
-| password | VARCHAR | No | No | Hashed password |
-| image | VARCHAR | Yes | No | Profile picture filename |
-| designation | VARCHAR | Yes | No | Professional title |
-| mobile | VARCHAR | Yes | No | Phone number |
-| remember_token | VARCHAR | Yes | No | Remember me token |
-| created_at | TIMESTAMP | No | No | Record creation time |
-| updated_at | TIMESTAMP | No | No | Last update time |
+| `DATABASE_URL` | ✓ | string | PostgreSQL connection string. | Required |
+| `NEXTAUTH_SECRET` | ✓ | string | 64+ random bytes for JWT signing. | Required |
+| `NEXTAUTH_URL` | ✓ | string | Public URL of the dashboard. | Required |
+| `AGENT_TOKEN_PEPPER` | ✓ | string | Server-side pepper prepended before bcrypt of agent tokens. Min 32 chars. | Required |
+| `UPSTASH_REDIS_REST_URL` | ✓ | string | Upstash Redis REST endpoint for rate limiting. | Required for rate-limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | ✓ | string | Upstash Redis auth token. | Required for rate-limiting |
+| `GITHUB_APP_ID` | ✓ | string | Numeric ID of the Axis Pulse GitHub App. | Optional (repo context) |
+| `GITHUB_APP_PRIVATE_KEY` | ✓ | string | Base64-encoded PEM private key for GitHub App auth. | Optional (repo context) |
+| `GITHUB_APP_WEBHOOK_SECRET` | ✓ | string | Reserved for future webhook support; unused in v1. | Optional |
+| `GITHUB_INSTALLATION_ID` | ✓ | string | Default org installation ID. | Optional (repo context) |
+| `INTERNAL_CLEANUP_TOKEN` | ✓ | string | Bearer token for `POST /api/admin/cleanup` (Coolify cron). Min 32 chars. | Required (cron) |
+| `SENTRY_DSN` | ✓ | string | Sentry error reporting DSN (server). Read in `instrumentation.ts`. | Optional |
+| `NEXT_PUBLIC_SENTRY_DSN` | ✓ | string | Sentry DSN for client-side reporting. Read in `instrumentation-client.ts`. | Optional |
+| `COOLIFY_BACKUP_BUCKET` | ✓ | string | S3-compatible bucket name for nightly Postgres dumps. | Optional |
+| `LOG_LEVEL` | ✓ | string | Pino log level. Default: `"info"`. | Optional |
+| `GEMINI_API_KEY` | ✓ (stale) | string | **Stale entry in `.env.example:22`** — listed as P20 Gemini Flash key. The runtime code uses `GROQ_API_KEY`, not this variable. Setting `GEMINI_API_KEY` has no effect. | Not used |
+| `CLAUDE_MONTHLY_CEILING_USD` | ✓ | string | Monthly narration spend ceiling in USD (e.g. `"50.00"`). Enforced at startup in production (nodejs runtime only). Default in `.env.example`: `"50.00"`. | Required in production |
+| `GROQ_API_KEY` | **✗ missing** | string | Groq API key for Llama 3.3 70B narration, feed summaries, and streaming executive summary. **Required for all AI features.** Not in `.env.example` — must be added manually. | Required (AI) |
+| `SCALE_TIER` | **✗ missing** | string | Rate-limit multiplier tier: `"0.5x"`, `"1x"`, `"4x"`. Default: `"1x"`. Not in `.env.example` — must be added manually. | Optional |
+| `CLAUDE_DAILY_BUDGET` | **✗ missing** | number | Daily token budget displayed in `GET /api/health` response. Default: `100000`. Display only — not enforced. Not in `.env.example`. | Optional |
+| `SENTRY_DEBUG` | **✗ missing** | string | Controls Sentry build verbosity via `next.config.mjs`: `silent: !process.env.SENTRY_DEBUG`. Set any truthy value to enable verbose Sentry upload output. Not in `.env.example`. | Optional |
+| `SONAR_HOST_URL` | ✓ | string | SonarQube REST API base URL (Node.js process → SonarQube). e.g. `http://localhost:9000`. | Required (code health) |
+| `SONAR_SCANNER_HOST_URL` | ✓ | string | URL used by the sonar-scanner Docker container to reach SonarQube. Differs from `SONAR_HOST_URL` because Docker cannot use `localhost`. e.g. `http://host.docker.internal:9000` locally. | Required (code health) |
+| `SONAR_TOKEN` | ✓ | string | SonarQube user token for REST API and scanner authentication. | Required (code health) |
+| `SONAR_PROJECT_KEY` | ✓ | string | SonarQube project key for the EDGE scan path (no GitHub link). Not used for CENTRAL scans (key is derived). | Required (EDGE path only) |
+| `SONAR_ADMIN_TOKEN` | ✓ | string | SonarQube admin token used by `ensureSonarProject()` to auto-provision new project keys before first central scan. Separate from `SONAR_TOKEN`. | Required (CENTRAL path) |
 
-Additional fields (inferred from code):
-- agentCode, dob, citizenship, residency, passportExpiry, passport, gender
-- educationLevel, educationCountry, graduationStatus, institution, degree
-- englishProficiency, englishListening, englishWriting, englishReading, englishSpeaking
-- major, avgMark, majorInterest, higherEducationCountry1/2/3, educationLevelInterest
+Source: `.env.example` (verified line-by-line), `src/lib/ratelimit.ts:5`, `src/lib/cost-ceiling.ts:11`, `src/lib/logger.ts:27`, `src/app/api/health/route.ts:19`, `next.config.mjs:18`, `instrumentation.ts:6-8`.
 
-Reference: `database/migrations/0001_01_01_000000_create_users_table.php`
+---
+
+## Technical Abbreviations
+
+| Abbreviation | Expansion | Context |
+|---|---|---|
+| LM | Line Manager | Role name used in code and docs. |
+| HMAC | Hash-based Message Authentication Code | Request-signing scheme: `X-Pulse-Signature: HMAC_SHA256(rawBody, agentToken)`. Source: `src/app/api/ingest/event/route.ts:83`. |
+| OTel | OpenTelemetry | Minimal span-tracing library at `src/lib/otel.ts`. |
+| RBAC | Role-Based Access Control | Enforced via `withAuthScoped()` and the three-tier role system. |
+| AFK | Away From Keyboard | ActivityWatch concept; AFK threshold = 3 min of no input. |
+| PII | Personally Identifiable Information | Redacted from session excerpts by `src/lib/redact.ts`. |
+| PEM | Privacy Enhanced Mail | Format for private keys (`-----BEGIN ... PRIVATE KEY-----`). Redacted by Rule 6. Source: `src/lib/redact.ts:62`. |
+| JWT | JSON Web Token | NextAuth v5 session strategy. Also a redaction target. Source: `src/lib/redact.ts:44`. |
+| CUID | Collision-resistant Unique Identifier | Default ID format for all Prisma models (`@default(cuid())`). |
+| IANA | Internet Assigned Numbers Authority | Timezone standard used for `MemberDailyTime.timezone`. |
+| TTL | Time To Live | Cache expiry. GitHub installation token cache TTL = 50 minutes. Source: `src/lib/repo-context/client.ts:56`. |
+| CSP | Content Security Policy | Security header set by middleware. |
+| HSTS | HTTP Strict Transport Security | Security header set by middleware. |
+| P95 | 95th percentile | Latency metric tracked by `src/lib/metrics.ts`. |
+| P50 | 50th percentile (median) | Latency metric tracked by `src/lib/metrics.ts`. |
+
+---
+
+## Status & State Values
+
+### Project display status (derived)
+- `Active` — `ProjectStatus = ACTIVE` and last activity within 2 hours.
+- `Idle` — `ProjectStatus = ACTIVE` but no activity in the last 2 hours.
+- `Paused` — `ProjectStatus = PAUSED`.
+- `Archived` — `ProjectStatus = ARCHIVED`.
+
+Source: `src/lib/project-status.ts`.
+
+### Verdict labels
+- `"On Track"` — All signals healthy (or project is PAUSED/ARCHIVED).
+- `"Needs Attention"` — MED risk, stale intel (>48h), active-but-$0-cost, or no intel generated yet.
+- `"At Risk"` — HIGH AI risk signal or no activity in 3+ days.
+
+Source: `src/lib/project-verdict.ts`.
+
+### Risk levels
+- `LOW` — Default. No clear risk signals.
+- `MEDIUM` / `MED` — Shared dependency or area being touched.
+- `HIGH` — Core infrastructure, security, or data in scope.
+
+Source: `src/lib/narrate.ts:50`, `src/lib/project-verdict.ts:46`.
+
+### Presence states
+- `active` — Within 30 minutes.
+- `idle` — Within 2 hours.
+- `offline` — More than 2 hours ago.
+
+Source: `src/lib/presence.ts`.
+
+### Repo context states
+- `NONE` — Not linked.
+- `REFRESHING` — Fetch in progress.
+- `LINKED` — Snapshot available.
+- `ERROR` — Last fetch failed.
+
+Source: `prisma/schema.prisma:38`.
+
+### Budget statuses
+- `ok` — Usage < 80%.
+- `near-limit` — Usage >= 80% and < 100%.
+- `over-budget` — Usage >= 100%.
+- `no-budget` — No budget configured.
+
+Source: `src/lib/budget-utils.ts:12`.
+
+---
+
+## Error Codes & Messages
+
+| HTTP Status | Condition | Body / reason field |
+|---|---|---|
+| 400 | Invalid JSON body | `{ error: "Invalid JSON" }` |
+| 400 | Zod validation failure | `{ error: "Invalid request body" }` |
+| 400 | userIdHint email not in org | `{ error: "user_not_found" }` |
+| 401 | No or malformed Authorization header | `{ error: "Unauthorized" }` |
+| 401 | HMAC signature mismatch | `{ error: "Unauthorized" }` |
+| 401 | Token does not match any active record | `{ error: "Unauthorized" }` |
+| 403 | Project is PAUSED or ARCHIVED | `{ reason: "project_not_active" }` |
+| 403 | Cross-team access attempt | `{ reason: "forbidden" }` |
+| 403 | Time tracking disabled on team | `{ reason: "tracking_disabled" }` |
+| 403 | User has not acknowledged consent | `{ reason: "consent_required" }` |
+| 409 | Second LINE_MANAGER promotion on same team | `{ reason: "team_already_has_line_manager" }` |
+| 413 | Request body > 256 KB (event) or > 64 KB (time) | `{ error: "Payload too large" }` |
+| 422 | Password too short | `{ reason: "password_too_short" }` |
+| 422 | Password missing digit or symbol | `{ reason: "missing_digit_or_symbol" }` |
+| 422 | `productiveSeconds > workedSeconds` | `{ reason: "productive_exceeds_active" }` |
+| 423 | Account locked after 5 failed logins | `{ reason: "account_locked" }` |
+| 429 | Rate limit exceeded | `{ error: "Rate limit exceeded" }` |
+| 503 | Postgres ping failed | `{ db: "error", ... }` |
+
+Source: `src/app/api/ingest/event/route.ts`, `src/lib/password.ts`, `src/tests/rbac.test.ts`.
+
+---
+
+## Rate Limit Identifiers
+
+| Prefix / key | Limit | Window | Keyed by | Source |
+|---|---|---|---|---|
+| `pulse:ingest:event` | 60/min (1x); 240/min (4x) | 60 s sliding | projectId (token key) | `src/lib/ratelimit.ts:27` |
+| in-memory (status) | 30/min | 60 s sliding | userId | `src/lib/status-ratelimit.ts` |
+| in-memory (summary) | 10/hr (1x); 40/hr (4x) | 1 hr sliding | projectId | `src/lib/summary-ratelimit.ts:25` |
+| in-memory (export) | 20/hr (1x); 80/hr (4x) | 1 hr sliding | projectId | `src/lib/summary-ratelimit.ts:29` |
+| in-memory (repo-context) | 6/hr (1x); 24/hr (4x) | 1 hr sliding | projectId | `src/lib/repo-context-ratelimit.ts` |
+| `pulse:login:ip` (login IP) | 5/min | 60 s | IP address | `src/lib/ratelimit-login.ts` |
+| `pulse:login:hour:ip` | 20/hr | 1 hr | IP address | `src/lib/ratelimit-login.ts` |
+| `pulse:time:ingest` | 30/min | 60 s | token key | `src/lib/ratelimit-time.ts` |
+| `pulse:users:time` | 60/min | 60 s | userId | `src/lib/ratelimit-users-time.ts` |
+| `pulse:productive-rules` | 30/hr | 1 hr | userId | `src/lib/ratelimit-productive-rules.ts` |
+| `pulse:teams:patch` | 30/hr | 1 hr | userId | `src/lib/ratelimit-teams-patch.ts` |
+| `pulse:github:repos` | 30/min | 60 s | userId | `src/lib/ratelimit-github.ts` |
+
+---
+
+## Audit Action Strings
+
+Every `AuditLogEntry.action` value found in the codebase:
+
+| Action | Triggered by | meta fields |
+|---|---|---|
+| `LOGIN_FAILURE` | `POST /api/auth/login` — repeated or lockout failure only | `{ reason: "repeated_failure"\|"account_locked", attemptCount }` |
+| `CREATE_PROJECT` | `POST /api/projects` | `{ name, teamId, status }` |
+| `EDIT_PROJECT` | `PATCH /api/projects/[id]` | `{ name }` |
+| `DELETE_PROJECT` | `DELETE /api/projects/[id]` | `{ name }` |
+| `CREATE_TEAM` | `POST /api/teams` | `{ name }` |
+| `UPDATE_TEAM` | `PATCH /api/teams/[id]` | `{ name }` |
+| `DELETE_TEAM` | `DELETE /api/teams/[id]` | `{ name }` |
+| `ROTATE_TOKEN` | `POST /api/projects/:id/rotate-token` | `{ projectId, projectName }` |
+| `VIEW_PROJECT` | `GET /api/projects/:id/members` (manager reading project member list) | `{ projectId }` |
+| `ADD_PROJECT_MEMBER` | `POST /api/projects/:id/members` | `{ userId }` |
+| `SUMMARY_GENERATE` | `POST /api/projects/:id/summary` | `{ model, activeMemberCount, recentCommits }` |
+| `EXPORT_PDF` | `GET /api/projects/:id/export` | `{ summaryId }` |
+| `CONTEXT_ASSESS` | `POST /api/projects/:id/drift` — on-demand drift assessment | `{ assessmentId, trigger: "ON_DEMAND" }` |
+| `CONTEXT_BASELINE_SET` | `POST /api/projects/:id/drift/baseline` (manual) or auto-reset in `runAssessmentPipeline` on context_builds push | `{ source: "manual"\|"auto_marlin_commit", sha }` |
+| `EDIT_PRODUCTIVE_RULE` | Rule create/update via `POST/PATCH/DELETE /api/productive-rules` | `{ ruleId, scope, action: "create"\|"update"\|"delete" }` |
+| `CREATE_PROMPT` | `POST /api/prompts` | `{ pNumber, category }` |
+| `UPDATE_PROMPT` | `PATCH /api/prompts/[id]` | `{ pNumber }` |
+| `DELETE_PROMPT` | `DELETE /api/prompts/[id]` | `{ pNumber, title }` |
+| `LINK_PROMPT` | `PATCH /api/events/:id/p-number` — P-number override on an event | `{ old, new }` (pNumbers) |
+| `INVITE_MEMBER` | `POST /api/admin/members` | `{ teamId, existingUser: bool }` |
+| `ACTIVATE_MEMBER` | `POST /api/admin/members/[id]/activate` | `null` |
+| `REMOVE_MEMBER` | `POST /api/admin/members/[id]/deactivate` — member account deactivated (NOT team removal) | `{ teamId }` |
+| `ASSIGN_TO_TEAM` | `POST /api/admin/members/[id]/assign-to-team`; also `PATCH /api/admin/members/[id]` when `teamId` is non-empty | `{ teamId }` |
+| `REMOVE_FROM_TEAM` | `POST /api/admin/members/[id]/remove-from-team`; also `PATCH /api/admin/members/[id]` when `teamId` is empty | `{ from: previousTeamId }` |
+| `ASSIGN_ROLE` | `POST /api/admin/members/[id]/role` — direct role change | `{ from, to }` |
+| `PROMOTE_LINE_MANAGER` | `POST /api/admin/members/[id]/promote` | `{ teamId }` |
+| `DEMOTE_LINE_MANAGER` | `POST /api/admin/members/[id]/demote` | `{ teamId }` |
+| `INVITE_ACCEPTED` | `POST /api/invite/accept` — both new-user and existing-user paths | `{ role, teamId }` |
+| `INVITE_DECLINED` | `POST /api/invite/decline` — only written when invitee is an existing user | `{ organisationId }` |
+| `CHANGE_PASSWORD` | `POST /api/profile/change-password` | `null` |
+| `CREATE_AGENT_TOKEN` | `POST /api/projects/:id/agent-tokens` | `{ projectId, tokenId, label }` |
+| `REVOKE_AGENT_TOKEN` | `POST /api/agent-tokens/:tokenId/revoke` | `{ tokenId }` |
+| `DELETE_AGENT_TOKEN` | `DELETE /api/agent-tokens/:tokenId` (hard-delete; only if already revoked) | `{ tokenId }` |
+| `RESTORE_AGENT_TOKEN` | `POST /api/agent-tokens/:tokenId/restore` | `{ tokenId }` |
+| `RUN_CLEANUP` | `POST /api/admin/cleanup` | `{ cutoffDays, deletedCounts }` |
+| `REPO_LINK` | `linkRepoAndRefresh` in `src/lib/repo-context/index.ts` | `{ repoFullName, installationId, success, error }` |
+| `REPO_REFRESH` | Snapshot refresh completed; from `src/lib/repo-context/index.ts` | `{ source, durationMs, redactionCount, error }` |
+| `ACKNOWLEDGE_TRACKING_NOTICE` | `POST /api/consents/acknowledge` — member consent modal | `{ consentVersion }` |
+
+> **Removed from source (no longer written):** `REDACT` (removed from status route), `VIEW_TIME`, `REPORT_TIME`, `TOGGLE_TEAM_TRACKING`. These may appear in historical `AuditLogEntry` rows in existing databases but are no longer emitted by any current route.
+
+Source: `src/lib/audit.ts`; verified by `src/tests/audit-actions.test.ts`.
+
+---
+
+## Metric Names
+
+All metrics are exposed at `GET /api/metrics` in Prometheus text format.
+
+| Metric name | Type | Labels | Description |
+|---|---|---|---|
+| `pulse_request_latency_seconds` | histogram | `route`, `method`, `le` | HTTP request latency in seconds. Buckets: 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, +Inf. |
+| `pulse_request_latency_seconds_sum` | histogram sum | `route`, `method` | Sum of latency samples. |
+| `pulse_request_latency_seconds_count` | histogram count | `route`, `method` | Count of latency samples. |
+| `pulse_request_total` | counter | `route`, `method`, `status_class` | Total HTTP requests. `status_class` is `2xx`, `4xx`, or `5xx`. |
+| `pulse_claude_input_tokens_total` | counter | `project_id` | Cumulative Claude input tokens consumed per project. |
+| `pulse_claude_output_tokens_total` | counter | `project_id` | Cumulative Claude output tokens consumed per project. |
+
+Latency buckets constant: `LATENCY_BUCKETS_S = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]`. Source: `src/lib/metrics.ts:5`.
+
+Known pre-registered routes (appear in metrics even with zero traffic): `POST /api/auth/login`, `POST /api/ingest/event`, `POST /api/ingest/time`, `POST /api/status`, `GET /api/projects`, `POST /api/projects/:id/summary`, `GET /api/projects/:id/export`, `POST /api/projects/:id/repo-context/refresh`, `GET /api/github/installations/:id/repos`, `GET /api/users/:id/time`, `POST /api/productive-rules`, `PATCH /api/productive-rules/:id`, `PATCH /api/teams/:id`, `GET /api/admin/audit`. Source: `src/lib/metrics.ts:23`.
+
+---
+
+## Redaction Patterns
+
+All patterns in `src/lib/redact.ts`. Runs on both client (`lib/redact.mjs`) and server (defence in depth). Substitution placeholder: `[REDACTED]`.
+
+| Rule | Kind tag | Pattern | What it catches |
+|---|---|---|---|
+| 1 | `env` | `^\s*[A-Z][A-Z0-9_]+\s*=\S+` (multiline) | Env-style assignments (e.g. `ANTHROPIC_API_KEY=sk-ant-...`). Only the value is replaced; the key remains. |
+| 2 | `jwt` | `eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}` | JSON Web Tokens (header.payload.signature, each segment >= 20 chars). |
+| 3 | `sk-ant` | `sk-ant-[A-Za-z0-9_-]+` | Anthropic API keys. |
+| 4 | `sk` | `sk-[A-Za-z0-9]{20,}` | OpenAI-style API keys (sk- prefix, 20+ alphanumeric). |
+| 5 | `aws-key` | `(AKIA\|ASIA)[A-Z0-9]{15,16}` | AWS access keys (AKIA or ASIA prefix + 15-16 uppercase alphanumerics). |
+| 6 | `pem` | `-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----` | PEM private key blocks (RSA, EC, PKCS8, etc.). |
+| 7 | `url-creds` | `:\/\/[^:/?#\s]+:[^@\s]+@` | URLs with embedded credentials (`scheme://user:pass@host`). Replaced with `://[REDACTED]@`. |
+
+After all rules run, text is **truncated to 1500 characters**. The `RedactResult` type carries `{ text, count, kinds[] }`. `count` and `kinds` are written to `ActivityEvent.redactionCount` and audit meta, never the source content. Source: `src/lib/redact.ts`.
+
+---
+
+## Missing Terms Added From Source Files
+
+**Headline** — 8–12 word plain-English one-liner generated by the narration AI for each `Intelligence` row (field added in migration `20260614000001_intelligence_headline`). Used as a card-level summary on the project card. Source: `prisma/schema.prisma` (`Intelligence.headline`), `src/lib/narrate.ts:65`.
+
+**riskFocus** — Short plain-English phrase naming the specific risk area (e.g. "user login flow", "shared database records") when `riskLevel` is MEDIUM or HIGH. Null when `riskLevel` is LOW. Source: `src/lib/narrate.ts:59`, `prisma/schema.prisma` (`Intelligence.riskFocus`).
+
+**UserToken** — Per-user, machine-wide bearer token (one per user). Used by `pulse-time.mjs` for time-tracking ingest on the UserToken auth path. Different from `AgentToken` which is per-developer per-project. Resolved by `src/lib/userToken.ts`. Source: `prisma/schema.prisma:431`.
+
+**AgentToken** — Per-developer, per-project bearer token stored in the `AgentToken` table. Multiple can exist per project. Replaces the legacy `Project.agentTokenHash` single-token model. Source: `prisma/schema.prisma:407`, `src/lib/resolveAgentToken.ts`.
+
+**tokenPreview** — Last 4 characters of a raw agent or user token, stored in plaintext as a fast pre-filter for bcrypt lookups. Never sufficient to reconstruct the token. Source: `src/lib/token.ts:21`.
+
+**aiUsesTime** — Boolean flag on `Team` (`Team.aiUsesTime`). When true, the narration pipeline includes a time-context enrichment line (`worked Xh Ym | productive X% | unproductive X`) in the Groq prompt. Also includes topApps if consent v2 is given. Source: `src/lib/narrate.ts:157`.
+
+**SparklineWeek** — TypeScript type alias `[number, number, number, number, number, number, number]` — a 7-element tuple where index 0 is 6 days ago and index 6 is today (UTC midnight boundaries). Used for dashboard KPI sparklines. Source: `src/lib/dashboard.ts:5`.
+
+**Productive App Rule** — A `ProductiveAppRule` row classifying an app name or URL as productive or unproductive. Three match types: EXACT, GLOB, REGEX. Two scopes: GLOBAL (applies to all teams), TEAM (overrides GLOBAL for one team). Evaluated by `src/lib/productive-rules.ts`. Source: `prisma/schema.prisma:336`.
+
+**Fleet** — Informal term for the set of Claude Code instances (developer machines) sending hook events to Axis Pulse. Referenced in `notes/user-story.md` and the context-drift feature ("AI agents never build on a stale or wrong understanding"). Not a formal Prisma model.
+
+**Context Drift** — Implemented feature: Pulse detects when a project's code has drifted from its context documentation. Accuracy drift = docs state something code contradicts; Coverage drift = code has something docs don't mention. Uses GitHub Compare API diff + Groq AI analysis. Stored as `ContextDriftAssessment` rows. Source: `src/lib/drift/`, `src/app/api/projects/[id]/drift/`.
+
+**ContextSource** — The documentation source used for a drift assessment. Three values: `"context_builds"` (a dedicated branch with context files — highest signal quality, checked first), `"docs_on_default"` (the `/docs` folder on the default branch — fallback), `"none"` (no documentation source found — assessment immediately errors). Resolved by `resolveContextSource()` in `src/lib/repo-context/drift-github.ts`.
+
+**DriftRiskLevel** — Computed severity of context drift findings. `GREEN` = no HIGH or MEDIUM findings. `AMBER` = 1–3 MEDIUM findings. `RED` = any HIGH finding or ≥4 MEDIUM findings. Computed by `computeRiskLevel()` in `src/lib/drift/compute-risk.ts`.
+
+**DriftAssessmentStatus** — Lifecycle state of a `ContextDriftAssessment` row. `PENDING` = queued. `RUNNING` = pipeline executing. `COMPLETE` = finished (riskLevel + findings populated). `ERROR` = failed (error field populated). Stale RUNNING assessments (older than STALE_RUNNING_MS = 5 min) auto-transition to ERROR on the next GET.
+
+**DriftTriggerSource** — What caused a drift assessment. `ON_DEMAND` = user triggered via API or volume threshold. `VOLUME` = auto-trigger after 50 ingest events (VOLUME_THRESHOLD). `MAJOR_EVENT` = reserved for future use (e.g. Marlin webhook). `SYSTEM` = system-initiated maintenance trigger.
+
+**BASELINE_INVALID** — Error condition when `contextBranchBaselineSha` no longer exists in the GitHub repository (e.g. force-push erased it). `assessDiff()` writes an ERROR assessment and surfaces this for manual reset — never auto-resets the baseline. Source: `src/lib/drift/assess-diff.ts`.
+
+**contextBranchBaselineSha** — `String?` field on `Project`. Stores the commit SHA of the last known-good context state, set by `POST /api/projects/[id]/drift/baseline`. Used as the `base` in GitHub Compare API calls to compute the changed-files diff. Source: `prisma/schema.prisma`.
+
+**Verdict** — Computed project health status. See also `computeVerdict` in `src/lib/project-verdict.ts`. Values: `on_track`, `needs_attention`, `at_risk`, `not_enough_signal` (shown when no readiness snapshot and no scan run exist). The `VerdictBanner` component on the project detail page displays this with an explanation (`why` field) and `thresholds[]` (the real numbers behind the verdict). Source: `src/lib/project-verdict.ts:1`.
+
+**Budget Status** — Token budget display state for dev Claude Code spend. Values: `ok` (< 80% of budget), `near-limit` (80–100%), `over-budget` (≥ 100%), `no-budget` (null budget). Computed by `computeBudgetStatus()`. Source: `src/lib/budget-utils.ts:12`.
+
+**devTokenBudget** — Nullable integer on `Project` representing a visibility-only token budget for developer Claude Code usage. Not a hard enforcement ceiling — used for display purposes on `/admin/budget`. Source: `prisma/schema.prisma:146`.
+
+**Jaccard similarity** — Similarity metric used for P-number matching. Intersection-over-union of token sets (first 200 chars tokenised). Threshold: 0.6. Source: `src/lib/pnumber-matcher.ts:24`.
+
+**fingerprint** — Pre-computed tokenised representation of the first ~200 chars of a `Prompt.body` used for Jaccard matching. Built by `buildFingerprint()` in `src/lib/pnumber-matcher.ts:35`. Stored as space-joined token set.
+
+**Grace window** — A period during which a rotated agent token's previous hash (`Project.previousTokenHash`) is still accepted. Controlled by `Project.previousTokenExpiresAt`. Prevents service interruption when tokens are rotated. Managed by `verifyTokenWithGrace()` in `src/lib/token.ts`. Source: `src/lib/resolveAgentToken.ts:41`.
+
+**MAX-merge upsert** — The time ingest strategy: when a `MemberDailyTime` row already exists for `(userId, day)`, only update fields where the new value is greater than the stored value (takes the maximum). Prevents stale poll from overwriting fresher data. Source: `src/app/api/ingest/time/route.ts`.
+
+**Readiness signal** — The composite output of a readiness scan for a project. Returned as a `ReadinessSignal` object and rendered by `CompletionStatusWidget` as four named honest signals: (A4) plain-English unfinished-work marker count, (A3) test-file count, (A2) OLS marker-burn forecast, (Col4) Claude Code session time. No aggregated %, no single score. Source: `src/lib/readiness.ts:23`.
+
+**ReadinessSnapshot** — One DB row per scan invocation. Stores `markerCount`, `markerDetail` (JSON: `{ todo, fixme, skippedTests, stubbed, testFileCount }`), `coveragePct`, and `scannedAt`. Up to 90 rows are used for OLS forecast computation. `testFileCount` added in R2 — old rows without the key are handled by `?? 0` in the widget. Source: `prisma/schema.prisma` — `ReadinessSnapshot` model.
+
+**Completion Status** — The four-cell panel on the project detail page (introduced in R2, replaces "Readiness Signals"). Renders four named honest signals: burn-down forecast (OLS), test-file count (static scan), unfinished-work markers (plain English), and Claude Code session time (role-gated). No completion %, no single rolled-up score. Source: `src/app/projects/[id]/_components/CompletionStatusWidget.tsx`.
+
+**Code Health Snapshot** — Result of a SonarQube Community Build scan stored as a `CodeHealthSnapshot` row. Contains per-project `reliabilityRating`, `securityRating`, `maintainabilityRating` (each "A"–"E" or "N/A"), `qualityGate` ("PASS"/"FAIL"/"N/A"), `coveragePct` (nullable), and `duplicationPct` (nullable). Displayed in `CodeHealthRing` on the project detail page. Source: `prisma/schema.prisma` (migration `20260614000004`).
+
+**Quality Gate** — SonarQube pass/fail verdict for a scan. "PASS" if all configured quality conditions are met, "FAIL" if any condition fails, "N/A" if the gate status is unknown. Stored as a string in `CodeHealthSnapshot.qualityGate`. Mapped from SonarQube's `alert_status` metric: "OK"→"PASS", "ERROR"→"FAIL". Source: `src/lib/code-health.ts`.
+
+**Rating letter (SonarQube)** — Single letter A–E derived from SonarQube's numeric 1–5 rating. Bands: A=[1,2), B=[2,3), C=[3,4), D=[4,5), E=[5,5]. Applied to reliability, security, and maintainability. "N/A" when the metric is absent. Source: `src/lib/code-health.ts`.
+
+**SONAR_SCANNER_HOST_URL** — Env var used by the `sonar-scanner` Docker container to reach SonarQube. Differs from `SONAR_HOST_URL` because Docker cannot use `localhost`. Typical values: `http://host.docker.internal:9000` (local), `http://sonarqube:9000` (Coolify service network). Source: `.env.example`.
+
+**Unfinished marker** — A code annotation indicating incomplete work, counted by `countMarkersInContent`. Types: `TODO` (word-boundary, case-sensitive), `FIXME` (word-boundary, case-sensitive), skipped tests (`.skip(`, `.todo(`, `xit(`, `xdescribe(`, `xtest(`), and stubbed functions (`throw new Error('not implemented')`, case-insensitive). Source: `src/lib/readiness.ts:38`.
+
+**OLS forecast** — Ordinary Least Squares linear regression over `(scannedAt, markerCount)` pairs. Used to project how many days until marker count reaches zero at the current trend. Only shown when `snapshotCount >= FORECAST_MIN_SNAPSHOTS (3)` and slope is genuinely negative. Source: `src/lib/readiness.ts:54`.
+
+**FORECAST_MIN_SNAPSHOTS** — Minimum number of `ReadinessSnapshot` rows required before `computeForecast` emits a trend projection (value: 3). Below this threshold, the forecast kind is `"insufficient"`. Source: `src/lib/readiness.ts:34`.
+
+**TechDebtFinding** — A single AI-synthesised debt finding stored as an element of the `findings` Json column on `TechnicalDebtScan`. Fields: `priority` (P1–P4), `category` (e.g. "Security", "Reliability"), `title` (short label), `description` (plain-English explanation), `evidence` (source, files, lines, metric), `recommendation` (actionable remediation). Produced by `synthesiseDebtFindings` in `src/lib/debt/synthesise.ts` and filtered through the anti-hallucination guard before storage.
+
+**debtScore** — A 0–100 integer computed deterministically from `TechDebtFinding` P1–P4 counts: `100 − (P1×20 + P2×10 + P3×4 + P4×1)`, floored at 0. Higher score = cleaner codebase. Never AI-emitted — computed by `computeDebtScore` in `src/lib/debt/compute-score.ts` after synthesis. A scan with no findings scores 100. Stored in `TechnicalDebtScan.debtScore` on COMPLETE.
+
+**Priority (debt, P1–P4)** — The four severity levels assigned to `TechDebtFinding` objects by AI synthesis. P1 = blocker-level security/reliability issue; P2 = critical code quality or high-severity security; P3 = major code smell or medium-severity security; P4 = minor improvement opportunity. Only the strings `"P1"`, `"P2"`, `"P3"`, `"P4"` (exact match) are valid — the priority guard in `synthesiseDebtFindings` drops any finding whose priority string does not match one of these four values.
+
+**anti-hallucination guard** — The two-condition filter applied to every AI-returned `TechDebtFinding` before it is stored. Condition 1: `evidence.files` must be non-empty and at least one file must appear in the `realFiles` Set, which is built from actual Sonar issue file paths and SecurityFinding file paths. Condition 2: `priority` must be exactly one of `P1`/`P2`/`P3`/`P4`. Findings failing either condition are silently dropped. This is a defence-in-depth measure against hallucinated file references; the prompt also instructs the model not to invent files. Source: `src/lib/debt/synthesise.ts`.
+
+**SecurityScanRun** — One DB row per security scan invocation. Records metadata about a completed Semgrep CE + gitleaks + osv-scanner run: which tools ran (`toolsRun` JSON), how many findings were discovered (`findingCount`), and when (`scannedAt`). Related to `SecurityFinding` rows via `findings` relation. Added in migration `20260615000002_add_security_findings`. Source: `prisma/schema.prisma`.
+
+**SecurityFinding** — One DB row per individual finding from a security scan. Carries `tool` (which scanner produced it), `severity` (`SecuritySeverity` enum), `message` (human-readable description), and optional `file`/`line` location. All findings for a scan run are linked via `scanRunId`. Source: `prisma/schema.prisma`, `src/lib/security-scan.ts`.
+
+**SecuritySeverity** — Prisma enum with five levels: `CRITICAL | HIGH | MEDIUM | LOW | INFO`. Used on `SecurityFinding.severity`. Severity mapping by tool: gitleaks→CRITICAL; Semgrep ERROR→HIGH, WARNING→MEDIUM, else INFO; osv-scanner uses CVSS score or `database_specific.severity`. The `SEVERITY_WEIGHT` constant maps these to integers (CRITICAL:5, HIGH:4, MEDIUM:3, LOW:2, INFO:1) for sort ordering. Source: `prisma/schema.prisma`, `src/lib/security-scan.ts`.
+
+**scanState** — Computed value derived from the latest `SecurityScanRun` for a project. Three possible values:
+- `"not_scanned"` — no `SecurityScanRun` row exists; the "Needs a Look" panel shows "No security scan has been run yet."
+- `"scanned_clean"` — latest scan exists and `findingCount = 0`; panel shows "Nothing needs attention right now."
+- `"has_findings"` — latest scan exists and `findingCount > 0`; panel shows the merged findings list.
+Returned by `GET /api/projects/[id]/security-findings`. Passed as a prop through `ExceptionsWhoRow` → `ExceptionsPanel`. Source: `src/app/api/projects/[id]/security-findings/route.ts`, `src/app/projects/[id]/_components/ExceptionsPanel.tsx`.
+
+**member-tz window** — The time-at-keyboard window boundary computed from the member's own IANA timezone, read from the most recent `MemberDailyTime.timezone` row. `computeMemberTimeRange(window, memberTz)` converts the window label ("today"/"7d"/"30d") into `{ gte, lt/lte }` bounds expressed as UTC midnights — because `MemberDailyTime.day` is stored as UTC midnight representing the member's local calendar date. Example: a member in Asia/Dubai at 01:00 Dubai time has `today = "2026-06-17T00:00:00Z"`, not `"2026-06-16T00:00:00Z"`. Falls back to UTC when no rows exist. Contrast with **viewer-tz window** used for event sections. Source: `src/lib/member-card.ts` (`computeMemberTimeRange`).
+
+**viewer-tz window** — The event section window boundary in the viewer's local timezone, computed by `resolveTimeWindow(rawWindow, viewerTodayMs)` from `src/lib/project-time-window.ts`. `viewerTodayMs` is the viewer's local midnight as epoch ms, injected browser-side via `new Date().setHours(0,0,0,0)` and sent as `?todayCutoff=<ms>`. Applied as `ingestedAt: { gte: since }` on spend/sessions/commits/projects queries. Contrast with **member-tz window** used for time-at-keyboard. Source: `src/lib/project-time-window.ts`, `src/app/admin/members/_components/MemberDetailCard.tsx`.
+
+**TimeWindow** — TypeScript union type `"today" | "7d" | "30d"` representing the three selectable time filter windows in the UI. Defined in `src/lib/project-time-window.ts`. "today" = viewer's local calendar day (tz-correct via `todayCutoffMs`); "7d" = rolling 7 days from now; "30d" = rolling 30 days from now. Passed as `?window=<value>` query param to the member card API and other windowed endpoints. Source: `src/lib/project-time-window.ts:1`.
+
+**IntelligenceHighlight** — A per-narration highlight bullet point stored as a `IntelligenceHighlight` DB row. One or more highlights are generated per `Intelligence` row by `filterHighlights()` in `src/lib/narrate.ts`. Each highlight carries `text` (the bullet text), `sourceEventId`, `sourceEventKind`, and optionally `sourceCommitSha`. Displayed in the member card's activity feed summary and on the project detail page. Source: `prisma/schema.prisma` (`IntelligenceHighlight` model), `src/lib/narrate.ts`.
+
+**ScanSource** — Prisma enum with two values: `CENTRAL` (server fetches a GitHub repo tarball and scans it) and `EDGE` (agent scans the local working directory). Used on both `CodeHealthSnapshot.scanSource` and `SecurityScanRun.scanSource` to record which scan path was taken. CENTRAL requires a linked GitHub installation; EDGE uses the `SONAR_PROJECT_KEY` env var and requires the CLI tools to be present on the developer's machine. Source: `prisma/schema.prisma:314–317`.
+
+---
+
+### Onboarding Tour — Phase 5 Terms
+
+**first-run tour** — The onboarding tour mode activated when `User.hasOnboarded === false`. Includes 9 creation-flow steps (welcome → create team → open dialog → create project → copy token → open project) that walk a brand-new user through the full setup sequence, plus 10 shared feature steps. MANAGER sees 19 steps; LINE_MANAGER (no project-creation access) sees 16 steps. Source: `src/lib/tour/steps.ts`, `src/components/tour/TourProvider.tsx`.
+
+**feature tour** — The onboarding tour mode activated when a user clicks "Take the tour again" on their profile page. Skips the creation-flow steps and starts at `feature-welcome`, then walks through the 10 shared feature-exploration steps. Activated by writing `pulse-tour-kind=feature` to the browser cookie before navigating to `/dashboard`. MANAGER and LINE_MANAGER each see 12 steps; MEMBER sees 0. Source: `src/lib/tour/steps.ts`, `src/app/profile/_components/RetakeTourButton.tsx`.
+
+**pulse-tour-kind** — First-party browser cookie (SameSite=Lax, 24-hour max-age, non-httpOnly) that stores the requested tour mode. Values: `"first-run"` or `"feature"`. Written by `writeTourKindCookie()` in `RetakeTourButton` before `router.push("/dashboard")`. Read by `TourProvider` at mount to determine which `filterSteps` mode to apply. Cleared by `clearTourKindCookie()` when the tour exits (complete or skip). Absent cookie defaults to first-run behaviour. Source: `src/lib/tour/cookie.ts`.
+
+**availableIn** — Optional field on `TourStep` (`"first-run"` | `"feature"`). When set, the step is only included in tours of that mode. When absent, the step appears in both first-run and feature tours. Evaluated by `filterSteps` as the second gate (after role, before `skipIf`). Source: `src/lib/tour/types.ts`.
+
+**skipIf** — Optional predicate on `TourStep`: `skipIf?: (ctx: TourFilterCtx) => boolean`. When it returns `true` the step is excluded from the filtered set. Evaluated by `filterSteps` as the third gate (after role and `availableIn`). Intended for steps that are redundant given the user's current state (e.g., skip the "add a project" step if the user already has projects). Source: `src/lib/tour/types.ts`, `src/lib/tour/filter.ts`.
+
+**element-appears** — Tour advance mode added in Phase 5. When `advance.on === "element-appears"`, `TourProvider` does not advance on user click or navigation; instead it polls the DOM at 200 ms intervals until the element specified by `advance.selector` appears (i.e., `document.querySelector(advance.selector) !== null`), then automatically advances to the next step. Used on `project-create-modal` to wait for `[data-tour='project-token-copy']` to appear in DOM after the user submits the create-project form — avoids advancing before the token is rendered. Source: `src/lib/tour/types.ts` (`TourAdvanceMode`), `src/components/tour/TourProvider.tsx`.
+
+---
+

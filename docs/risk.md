@@ -1,1914 +1,520 @@
-# PlusPoint EDU - Comprehensive Risk Assessment Document
+# Risk
 
-## Executive Summary
-
-This document provides a comprehensive risk assessment of the PlusPoint EDU codebase, a Laravel 11.9-based educational platform for international student admissions guidance. The assessment identifies technical debt, security vulnerabilities, scalability concerns, dependency risks, data integrity issues, and operational gaps. Each identified risk is mapped to specific code locations and includes mitigation strategies.
-
-**Assessment Date**: 2024  
-**Framework**: Laravel 11.9  
-**PHP Version**: 8.2+  
-**Database**: MySQL (configurable)
+> **Scope**: Every finding in this document is grounded in a specific source file.  
+> No invented risks, no generic advice.  
+> **Last updated**: 2026-06-26  
+> **Covers**: P1–P19 + Phase 10 Security Scan + Phase 5 Onboarding Tour + Technical Debt Analyzer Phase B + Technical Debt Analyzer Phase D (phases completed as of this writing)
 
 ---
 
-## Methodology
+## Table of Contents
 
-This risk assessment was conducted through systematic code analysis using:
-- Static code analysis and pattern detection
-- Security vulnerability scanning
-- Dependency and configuration review
-- Data flow and validation analysis
-- Operational readiness evaluation
-
----
-
-## Critical Risks
-
-### CR-001: Inadequate Input Validation and SQL Injection Vulnerability
-
-**Severity**: CRITICAL  
-**Category**: Security  
-**Affected Components**: User registration, profile management, blog management
-
-#### Risk Description
-
-The application contains multiple instances of insufficient input validation that could lead to SQL injection attacks and data corruption. The validation logic relies on basic regex patterns without comprehensive sanitization.
-
-#### Evidence
-
-**File**: `app/Http/Controllers/AccountController.php` (line 34-59)
-```
-Validates email format with: regex:/^[^A-Z]/
-Validates password with: regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
-```
-
-The validation for referral codes uses:
-```
-DB::table('code-database')->where('referral_code', $value)->exists()
-```
-
-While Eloquent parameterized queries provide some protection, the application lacks:
-- Input length restrictions
-- Character set validation
-- XSS prevention filters
-- HTML entity encoding on output
-
-**File**: `app/Http/Controllers/StudentController.php`  
-Profile update operations accept user input without comprehensive validation of:
-- File upload validation (MIME type, size, content)
-- String length constraints
-- Special character handling
-
-#### Impact
-
-- **Likelihood**: High (multiple validation gaps)
-- **Impact**: Critical (data breach, data corruption, unauthorized access)
-- **Business Impact**: Loss of student data, regulatory non-compliance (GDPR, FERPA), reputational damage
-
-#### Mitigation Strategies
-
-1. **Implement Comprehensive Input Validation**
-   - Use Laravel's built-in validation rules comprehensively
-   - Add maximum length constraints to all string inputs
-   - Implement whitelist-based validation for specific fields
-   - Use `validated()` method consistently across all controllers
-
-2. **Output Encoding**
-   - Use Blade's `{{ }}` syntax (auto-escapes) instead of `{!! !!}` (raw output)
-   - Implement HTML entity encoding for all user-generated content in views
-   - Use `htmlspecialchars()` or Blade's escape functions
-
-3. **File Upload Security**
-   - Validate MIME types using `mimes:` and `image:` rules
-   - Implement file size limits
-   - Store uploads outside web root
-   - Scan uploads for malicious content
-
-4. **Code Example**:
-```php
-$validated = $request->validate([
-    'name' => 'required|string|max:255|regex:/^[a-zA-Z\s\-\']+$/',
-    'email' => 'required|email|max:255|unique:users',
-    'password' => 'required|string|min:8|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/',
-    'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-]);
-```
+1. [Security Risks](#1-security-risks)  
+   1.1 [Authentication & Token Security](#11-authentication--token-security)  
+   1.2 [API Security & Rate Limiting](#12-api-security--rate-limiting)  
+   1.3 [PII & Data Handling](#13-pii--data-handling)  
+   1.4 [HTTP Headers & CSP](#14-http-headers--csp)  
+   1.5 [Multi-tenancy Isolation](#15-multi-tenancy-isolation)  
+   1.6 [GitHub Integration](#16-github-integration)  
+2. [Performance Risks](#2-performance-risks)  
+3. [Scalability Risks](#3-scalability-risks)  
+4. [Technical Debt](#4-technical-debt)  
+5. [Compliance & Privacy Risks](#5-compliance--privacy-risks)  
+6. [Recommended Mitigations](#6-recommended-mitigations)
 
 ---
 
-### CR-002: Weak Authentication and Authorization Controls
+## 1 Security Risks
 
-**Severity**: CRITICAL  
-**Category**: Security  
-**Affected Components**: Authentication system, role-based access control
+### 1.1 Authentication & Token Security
 
-#### Risk Description
+#### Session cookie configuration
 
-The application implements basic role-based access control without comprehensive authorization checks. Multiple endpoints lack proper authentication verification and role validation.
+**Source**: `src/app/api/auth/login/route.ts`
 
-#### Evidence
+Sessions are issued as 30-day JWTs (`SESSION_MAX_AGE = 30 * 24 * 60 * 60`). The cookie is set `HttpOnly; SameSite=Lax`. On HTTPS the `__Secure-` prefix is applied, adding the `Secure` flag. No MFA is implemented; this is explicitly scoped out in the archdoc §10 ("No MFA in v1 — documented as v1 scope-out").
 
-**File**: `routes/web.php`  
-Route definitions show middleware application, but verification of consistent middleware usage across all protected routes is required.
+**Risk**: 30-day session lifetime means a stolen cookie has a long window of opportunity. SameSite=Lax does not protect against cross-site POST from the same registrable domain (e.g. a subdomain).
 
-**File**: `app/Http/Controllers/AdminController.php`  
-Administrative functions lack explicit authorization checks. The controller assumes that reaching the method means the user is authorized, relying solely on middleware.
+#### Session version invalidation cache in-memory
 
-**File**: `app/Http/Controllers/BlogController.php`  
-Blog management operations lack granular permission checks:
-- No verification that the user owns the blog post before allowing edits
-- No check for admin status before allowing deletion
-- No audit logging of who modified what and when
+**Source**: `src/lib/withAuthScoped.ts`
 
-#### Impact
+`_sessionVersionCache` is a module-level `Map<string, { version: number; cachedAt: number }>` with a 30-second TTL. This cache lives entirely in the Node.js process heap. On any process restart (deploy, crash, scale event) all cached session versions are lost, forcing a DB lookup on the next request. In a multi-process deployment each process maintains its own independent cache — a role change applied in one process will not be visible in another for up to 30 seconds.
 
-- **Likelihood**: High (authorization gaps are common)
-- **Impact**: Critical (unauthorized data access, privilege escalation, data manipulation)
-- **Business Impact**: Unauthorized access to student records, regulatory violations, data breach
+**Risk**: Role changes may take up to 30 seconds to propagate in single-process deployments; potentially longer in multi-process. An attacker who has compromised a session cookie retains the old role for the TTL window after the role is changed.
 
-#### Mitigation Strategies
+#### bcrypt cost and missing pepper
 
-1. **Implement Policy-Based Authorization**
-   - Create Laravel Policies for each model (User, Blog, StudentProfile, etc.)
-   - Use `authorize()` method in controllers before operations
-   - Implement granular permission checks
+**Source**: `src/lib/token.ts`
 
-2. **Code Example**:
-```php
-// In BlogController
-public function update(Request $request, Blog $blog)
-{
-    $this->authorize('update', $blog); // Policy check
-    
-    $validated = $request->validate([...]);
-    $blog->update($validated);
-    
-    return redirect()->back()->with('success', 'Blog updated');
-}
-```
+Agent tokens use bcrypt at cost 12 with a server-side pepper (`AGENT_TOKEN_PEPPER`). The fallback is `const pepper = process.env.AGENT_TOKEN_PEPPER ?? ""`, silently removing the pepper if the env var is absent. This is not checked at startup.
 
-3. **Create Policies**:
-```php
-// app/Policies/BlogPolicy.php
-public function update(User $user, Blog $blog)
-{
-    return $user->id === $blog->user_id || $user->role === 'admin';
-}
-```
+**Risk**: A missing pepper reduces token hashing to plain bcrypt(raw, 12) with no server-side secret component. If the database is breached, tokens lacking a pepper are more susceptible to offline brute-force. There is no startup assertion that fails if the pepper is absent.
 
-4. **Audit Logging**
-   - Log all authorization failures
-   - Track who accessed sensitive data and when
-   - Implement activity logging middleware
+#### Legacy agent token fallback
 
-5. **Session Security**
-   - Implement session timeout (15-30 minutes for sensitive operations)
-   - Add CSRF token validation to all state-changing operations
-   - Implement secure session configuration in `config/session.php`
+**Source**: `src/lib/resolveAgentToken.ts`
+
+`resolveAgentToken()` first checks the new per-developer `AgentToken` table; on miss it falls back to `Project.agentTokenHash` (the old single-token-per-project model). The code comment reads: *"This fallback is intentional migration tech-debt and should be retired once all projects have ≥1 AgentToken row."* Until retired, projects that have not yet been migrated accept tokens via the legacy path, which does not return a `userId` and cannot attribute events to a specific developer.
+
+**Risk**: Legacy tokens bypass per-developer attribution. An organisation that has not yet migrated all projects has a mixed security model where some ingest events are unattributed.
+
+#### No rate limit on signup
+
+**Source**: `src/app/api/auth/signup/route.ts`
+
+The login endpoint is rate-limited (5/min + 20/hr per IP via `src/lib/ratelimit-login.ts`). The signup endpoint performs a password hash, a DB lookup, and multiple DB writes, but has **no rate limiting**.
+
+**Risk**: An attacker can enumerate valid email addresses by POST-ing to `/api/auth/signup` at arbitrary volume. The bcrypt operation at cost 12 also makes this a CPU-amplification vector.
+
+#### HMAC request signing on ingest routes
+
+**Source**: `src/app/api/ingest/event/route.ts`, `src/app/api/ingest/time/route.ts`
+
+All ingest routes perform HMAC-SHA256 signature verification using `crypto.timingSafeEqual` to prevent timing attacks. The signing key is the **raw agent token itself** (`rawToken` extracted from the Bearer header), not a separate env var. The HMAC is computed as `HMAC_SHA256(rawBody, rawToken)` and compared against the `x-pulse-signature` header. If the Bearer token is absent, the route returns 401 before the HMAC check is even reached.
+
+**Risk**: The HMAC provides body integrity (prevents body tampering if a token leaks via logs) but not a separate server-side secret. There is no additional `INGEST_HMAC_SECRET` env var — the security relies entirely on the agent token remaining secret. Token rotation invalidates the signing key immediately.
+
+#### Account lockout implementation
+
+**Source**: `src/app/api/auth/login/route.ts`
+
+Lockout triggers after 5 failed attempts within 10 minutes (`LOCKOUT_THRESHOLD = 5`, `LOCKOUT_DURATION_MS = 10 * 60 * 1000`). The lockout state is stored in `User.lockedUntil` in Postgres — it survives restarts. The error response for a locked account is deliberately identical to an invalid-credentials response to avoid leaking lockout state.
+
+**Risk**: Low — design is sound. The lockout itself can be used as a DoS vector against legitimate users if an attacker knows their email. No CAPTCHA or progressive delay mitigates automated lockout attacks.
 
 ---
 
-### CR-003: Secrets and Credentials Exposure
+### 1.2 API Security & Rate Limiting
 
-**Severity**: CRITICAL  
-**Category**: Security  
-**Affected Components**: Configuration, environment variables, database credentials
+#### Fail-open rate limiters (Upstash unavailable)
 
-#### Risk Description
+**Sources**: `src/lib/ratelimit.ts`, `src/lib/ratelimit-time.ts`, `src/lib/ratelimit-login.ts`, `src/lib/ratelimit-github.ts`, `src/lib/ratelimit-teams-patch.ts`, `src/lib/ratelimit-productive-rules.ts`, `src/lib/ratelimit-users-time.ts`
 
-The application relies on environment variables for sensitive configuration. Risk of exposure through:
-- `.env` file committed to version control
-- Hardcoded credentials in configuration files
-- Secrets visible in logs or error messages
-- Unencrypted database credentials in configuration
+Every Upstash-backed rate limiter follows the same pattern: if `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are absent, or if the Redis call throws, the function returns `{ allowed: true }`. This is explicitly acknowledged in `notes/pending-work.txt`: *"Redis not provisioned in production — rate limits are currently fail-open."*
 
-#### Evidence
+**Risk**: In the current production deployment rate limiting is entirely disabled for all ingest, summary, export, repo-context, and GitHub endpoints. Any client can send unlimited requests. This is a known blocker, not an unknown issue, but it remains unresolved.
 
-**File**: `.env` (if present in repository)  
-Environment configuration file containing:
-- Database credentials
-- API keys
-- Mail service credentials
-- Encryption keys
+#### Public metrics endpoint
 
-**File**: `config/database.php`  
-Database configuration reads from environment variables but lacks encryption:
-```php
-'mysql' => [
-    'driver' => 'mysql',
-    'host' => env('DB_HOST', 'localhost'),
-    'database' => env('DB_DATABASE', 'forge'),
-    'username' => env('DB_USERNAME', 'forge'),
-    'password' => env('DB_PASSWORD', ''),
-]
-```
+**Source**: `src/app/api/metrics/route.ts`, `src/middleware.ts`
 
-#### Impact
+`GET /api/metrics` is listed in `PUBLIC_PREFIXES` in the middleware and performs no authentication. The response exposes per-project Claude token counters, per-route request counts, error counts, and latency histograms (p50/p75/p95/p99) in Prometheus text format.
 
-- **Likelihood**: Medium (depends on repository access controls)
-- **Impact**: Critical (complete system compromise, data breach)
-- **Business Impact**: Full system compromise, customer data exposure, regulatory violations
+**Risk**: Project token consumption and API latency data is visible to any unauthenticated caller. This leaks billing-sensitive information and reveals internal route structure. An attacker can use the latency data to fingerprint application behaviour.
 
-#### Mitigation Strategies
+#### Public productive-rules read endpoint
 
-1. **Environment Variable Management**
-   - Never commit `.env` file to version control
-   - Use `.env.example` with placeholder values
-   - Implement `.gitignore` to exclude sensitive files
-   - Use environment-specific configuration in deployment
+**Source**: `src/middleware.ts` (`PUBLIC_PREFIXES` includes `/api/productive-rules`)
 
-2. **Secrets Management**
-   - Implement Laravel Vault or similar secrets management
-   - Use cloud provider secrets management (AWS Secrets Manager, Azure Key Vault)
-   - Rotate credentials regularly
-   - Audit access to secrets
+`GET /api/productive-rules` is listed as public, bypassing the session check for read operations.
 
-3. **Code Example** (.gitignore):
-```
-.env
-.env.local
-.env.*.local
-.DS_Store
-/vendor/
-/node_modules/
-/storage/logs/*
-```
+**Risk**: Productive rules (which describe what constitutes productive vs unproductive behaviour per team) are readable without authentication. For most deployments this is low-sensitivity data, but it may leak team names and workflow expectations to unauthenticated callers.
 
-4. **Deployment Security**
-   - Use CI/CD pipeline to inject secrets at deployment time
-   - Never log sensitive values
-   - Implement secret scanning in CI/CD pipeline
-   - Use encrypted configuration for production
+#### In-memory fallback rate limiters (process-scoped)
 
-5. **Error Handling**
-   - Disable debug mode in production (`APP_DEBUG=false`)
-   - Implement custom error pages that don't expose system details
-   - Log errors securely without exposing credentials
+**Sources**: `src/lib/status-ratelimit.ts`, `src/lib/summary-ratelimit.ts`, `src/lib/repo-context-ratelimit.ts`, `src/lib/ratelimit-login.ts`
+
+Several rate limiters (status: 30/min/user, summary: 10/hr/project, export: 20/hr/project, repo-context: 6/hr/project, login: 5/min/IP) use pure in-memory sliding-window stores. These stores are module-level `Map` objects that are reset on every process restart.
+
+**Risk**: A process restart clears all rate limit counters. An attacker who can trigger a restart (e.g. via OOM or crash loop) can reset rate limits. In multi-worker deployments each worker maintains its own counter, so effective limits are multiplied by worker count.
+
+#### CSRF protection scope
+
+**Source**: `src/middleware.ts`
+
+CSRF token validation bypasses `/api/status`, which is in `CSRF_BYPASS_PREFIXES`. All state-mutating routes (login, signup, ingest) that are not in the bypass list require a CSRF token.
+
+**Risk**: `/api/status` accepts POST requests without CSRF protection. The endpoint writes `MemberStatus` records. While it requires a valid agent/user token, the missing CSRF check means a cross-site request could update status if the cookie is available.
 
 ---
 
-### CR-004: Missing CSRF and Security Headers
+### 1.3 PII & Data Handling
 
-**Severity**: CRITICAL  
-**Category**: Security  
-**Affected Components**: Form handling, API endpoints, HTTP responses
+#### PII redaction pipeline
 
-#### Risk Description
+**Sources**: `src/lib/redact.ts`, `lib/redact.mjs`
 
-While Laravel provides CSRF protection middleware, verification of consistent application across all forms and state-changing operations is critical. Additionally, security headers are not configured to protect against common web vulnerabilities.
+Two copies of the redaction pipeline exist: `src/lib/redact.ts` (TypeScript, server-side) and `lib/redact.mjs` (ESM, used by scripts). The pipeline applies exactly 7 rules in order: (1) env-style assignments `KEY=VALUE`, (2) JWTs `eyJ...`, (3) Anthropic API keys `sk-ant-…`, (4) OpenAI-style keys `sk-[20+ alphanum]`, (5) AWS access keys `AKIA`/`ASIA` prefix, (6) PEM private key blocks, (7) URL-embedded credentials `scheme://user:pass@host`. The test suite (`src/tests/redact-parity.test.ts`) verifies both copies produce identical output for all corpus entries.
 
-#### Evidence
+**Risk**: Two copies means any fix must be applied in two places. A future rule added to only one copy will create a divergence not caught until a parity test fails. Email addresses, credit card PANs, and IPv4 addresses are **not** redacted by the current pipeline — these would appear in stored `sessionExcerpt` if present.
 
-**File**: `app/Http/Middleware/VerifyCsrfToken.php`  
-CSRF middleware exists but requires verification that:
-- All forms include `@csrf` token
-- All AJAX requests include CSRF token in headers
-- Exceptions are properly configured
+#### Logger PII redaction paths
 
-**File**: `bootstrap/app.php`  
-No explicit security header configuration visible. Missing:
-- Content-Security-Policy (CSP)
-- X-Frame-Options
-- X-Content-Type-Options
-- Strict-Transport-Security (HSTS)
-- X-XSS-Protection
+**Source**: `src/lib/logger.ts` (pino `redact` config, verified by `src/tests/logger-pii.test.ts`)
 
-#### Impact
+The pino logger has explicit `redact` paths covering: `password`, `passwordHash`, `agentToken`, `agentTokenHash`, `sessionExcerpt`, `manualText`, `tenantKey`, `secret`, `apiKey`, `jwt`, `bearerToken`, `req.headers.authorization`, `req.headers['x-pulse-signature']`, `req.headers['x-internal-token']`, `headers.authorization`, `headers['x-pulse-signature']`, `headers['x-internal-token']`, `Authorization`, `authorization`. Tests verify that sensitive values never appear in logger output.
 
-- **Likelihood**: High (common vulnerability)
-- **Impact**: Critical (CSRF attacks, clickjacking, XSS)
-- **Business Impact**: Unauthorized actions on behalf of users, data theft, malware injection
+**Risk**: Low — the redaction config is explicitly tested. Risk is that new sensitive fields added to log calls are not automatically redacted unless the path is added to the list. There is no runtime assertion that catches un-redacted sensitive field names.
 
-#### Mitigation Strategies
+#### App names collected with consent v2
 
-1. **CSRF Token Verification**
-   - Audit all forms to ensure `@csrf` token inclusion
-   - Verify AJAX requests include CSRF token
-   - Test CSRF protection with automated tests
+**Sources**: `src/lib/pulse-body-shape.ts`, `src/lib/consentCheck.ts`
 
-2. **Security Headers Configuration**
-   - Create middleware for security headers:
+`topApps` (application names from the developer's workstation) was added to `ALLOWED_TIME_BODY_KEYS` in the ingest body shape. This field is only accepted when the user has provided consent v2. Users with consent v1 must re-acknowledge before `topApps` is stored.
 
-```php
-// app/Http/Middleware/SecurityHeaders.php
-public function handle($request, Closure $next)
-{
-    $response = $next($request);
-    
-    $response->header('X-Content-Type-Options', 'nosniff');
-    $response->header('X-Frame-Options', 'DENY');
-    $response->header('X-XSS-Protection', '1; mode=block');
-    $response->header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    $response->header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
-    
-    return $response;
-}
-```
+**Risk**: If the consent gate is bypassed (e.g. a bug in `needsConsentModal()`), app names could be stored without explicit v2 consent. App names may qualify as personal data under GDPR (e.g. revealing medical or legal software usage).
 
-3. **Register Middleware**
-   - Add to `bootstrap/app.php` middleware stack
-   - Apply to all routes
+#### `idleSeconds` / `offlineSeconds` retained in schema
 
-4. **HTTPS Enforcement**
-   - Force HTTPS in production
-   - Configure HSTS headers
-   - Use secure cookies configuration
+**Source**: `prisma/schema.prisma` (`MemberDailyTime` model)
+
+The `idleSeconds` and `offlineSeconds` columns exist in the `MemberDailyTime` table but are **no longer written** by any ingest route as of P12. They were retained for schema backwards compatibility.
+
+**Risk**: The columns store zeros for all new rows, but old rows may contain real data. Any analytics query that reads these columns will silently mix real historical data with zeroed new data. Documentation does not flag this transition point.
 
 ---
 
-## High Risks
+### 1.4 HTTP Headers & CSP
 
-### HR-001: Inadequate Error Handling and Information Disclosure
+**Source**: `src/middleware.ts` (verified line-by-line)
 
-**Severity**: HIGH  
-**Category**: Security  
-**Affected Components**: Exception handling, logging, error pages
+The middleware generates a per-request nonce via `btoa(crypto.randomUUID())` and applies a Content Security Policy with `strict-dynamic`. Security headers actually set by `applySecurityHeaders()`:
 
-#### Risk Description
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Content-Security-Policy: <nonce-based CSP>` (see CSP section in `docs/architecture.md`)
 
-The application may expose sensitive information through error messages, stack traces, and logs. Debug mode enabled in production or detailed error messages could reveal system architecture and sensitive data.
+> **Correction**: `X-DNS-Prefetch-Control` is **not** set by this middleware — previously listed here in error. Verified directly from `src/middleware.ts:29-35`.
 
-#### Evidence
+**Missing headers** (verified absent from `src/middleware.ts`):
+- No `X-Frame-Options` header — the app can be embedded in `<iframe>` by any origin.
+- No `Permissions-Policy` header — browser features (camera, microphone, geolocation) are not restricted.
 
-**File**: `config/app.php`  
-Debug mode configuration:
-```php
-'debug' => env('APP_DEBUG', false),
-```
+**`style-src 'unsafe-inline'`**:
+The CSP includes `style-src 'self' 'unsafe-inline'`. This allows any inline `style` attribute or `<style>` block, which weakens XSS protections for style-based attacks (e.g. CSS exfiltration via attribute selectors).
 
-While defaulting to false, if `APP_DEBUG=true` in production environment, detailed stack traces would be exposed.
-
-**File**: `app/Exceptions/Handler.php`  
-Exception handling implementation requires verification that:
-- Sensitive data is not logged
-- Stack traces are not exposed to users
-- Error messages are generic for production
-
-#### Impact
-
-- **Likelihood**: Medium (depends on configuration management)
-- **Impact**: High (information disclosure, attack surface expansion)
-- **Business Impact**: Exposure of system architecture, potential for targeted attacks
-
-#### Mitigation Strategies
-
-1. **Debug Mode Management**
-   - Ensure `APP_DEBUG=false` in production
-   - Implement environment-specific configuration
-   - Use monitoring to detect if debug mode is enabled
-
-2. **Custom Error Pages**
-   - Create user-friendly error pages (404, 500, 503)
-   - Implement in `resources/views/errors/`
-   - Log detailed errors server-side without exposing to users
-
-3. **Code Example** (app/Exceptions/Handler.php):
-```php
-public function render($request, Throwable $exception)
-{
-    if ($this->isHttpException($exception)) {
-        return response()->view('errors.' . $exception->getStatusCode(), 
-            ['exception' => $exception], 
-            $exception->getStatusCode()
-        );
-    }
-    
-    // Log detailed error
-    Log::error('Exception: ' . $exception->getMessage(), [
-        'exception' => $exception,
-        'user_id' => auth()->id(),
-    ]);
-    
-    // Return generic error to user
-    return response()->view('errors.500', [], 500);
-}
-```
-
-4. **Logging Security**
-   - Implement log rotation
-   - Restrict log file access
-   - Sanitize logs to remove sensitive data
-   - Use structured logging for better analysis
+**Risk**: Absence of `X-Frame-Options` enables clickjacking attacks. Absence of `Permissions-Policy` is a defence-in-depth gap. `unsafe-inline` in `style-src` is a known CSP weakening; it cannot be tightened without auditing all inline style usage in the Next.js components.
 
 ---
 
-### HR-002: Insufficient Data Validation and Type Safety
+### 1.5 Multi-tenancy Isolation
 
-**Severity**: HIGH  
-**Category**: Data Integrity  
-**Affected Components**: Model validation, database operations, data persistence
+**Sources**: `src/lib/withAuthScoped.ts`, `src/tests/multi-tenant-fuzz.test.ts`, `src/tests/pm3-forge-*.test.ts`, `prisma/schema.prisma`
 
-#### Risk Description
+**PM3 update — JWT-trust gap closed.** Before PM3, `withAuthScoped` populated `ctx.organisationId` directly from the JWT's `organisationId` claim. A leaked `NEXTAUTH_SECRET` (or, in the multi-org future, a deliberate claim swap) could have driven cross-org access. PM3 moves the boundary into a per-request `db.membership.findUnique({ where: { userId_organisationId: { userId, organisationId } } })`. The `userId` is sourced from the verified `token.sub` (signature-checked by NextAuth); the `organisationId` is the (untrusted) JWT claim. A tampered claim → no row → null ctx → 401. Four forge tests (`pm3-forge-*.test.ts`) prove the boundary against cross-org access, header forging, JWT-claim tampering, and mid-session revocation — each empirically demonstrated to fail when the corresponding guard is removed (see ADR-024 for the verification table).
 
-The application lacks comprehensive data validation at the model level. While controller-level validation exists, missing model-level validation creates risks of invalid data persistence and race conditions.
+Prisma queries still include `organisationId` in their `where` clauses (the data-layer half of the boundary). The multi-tenant fuzz test suite (29 test cases) verifies:
+- Unauthenticated requests return 401 (fuzz-01 through fuzz-07)
+- Cross-team URL-id guessing returns 403, not 404 (fuzz-08 through fuzz-12)
+- Role escalation attempts return 403 (fuzz-13 through fuzz-21)
+- Cross-org project ID guessing returns 404 on scoped endpoints (fuzz-22 through fuzz-25)
+- **PM3 two-membership fixture**: user member of orgs A+B, active=B, requesting an A resource → 404 (fuzz-pm3-01, fuzz-pm3-02)
 
-#### Evidence
+**Reserved `tenantKey` columns**: The Prisma schema includes `tenantKey` columns on several models, reserved for a future multi-tenant migration (currently always `null`).
 
-**File**: `app/Models/User.php`  
-Model definition requires verification of:
-- Attribute casting and type safety
-- Fillable/guarded property configuration
-- Validation rules at model level
-- Relationship constraints
+**Residual risks (post-PM3)**:
+- The data-layer `organisationId` filter is still enforced by convention. A developer who forgets to scope a new query will not be caught at compile time — only by a fuzz test if one is written for that route. The fuzz test suite does not cover every route.
+- Ingest paths (`/api/ingest/event`, `/api/ingest/time`) do not use `withAuthScoped` — they bind to an org at AgentToken issuance time. This is intentional and out of PM3 scope, but the org-binding security of those paths sits in `src/lib/token.ts` / `src/lib/hmac.ts`, not in the Membership boundary.
+- **PM6 resolved**: `User.organisationId/role/teamId/isLineManager` columns have been dropped (migration `20260622000001_drop_user_legacy_cols`). Any future code that tries to read or write these fields will produce a compile error, not a silent runtime divergence.
 
-**File**: `app/Models/Blog.php`  
-Blog model lacks:
-- Attribute validation
-- Relationship integrity checks
-- Cascade delete configuration
-- Soft delete implementation for data safety
+**PM5 — PENDING Membership access gate.** PENDING memberships must not grant authenticated access. This is enforced by `withAuthScoped` checking `membership.status !== "ACTIVE"` → return null → 401, immediately after the Membership row is found. Three PM5 forge tests (`pm5-forge-pending-no-access.test.ts`, `pm5-forge-pending-no-switch.test.ts`, `pm5-invite-creates-pending-membership.test.ts`) empirically prove the gate. The **residual risk** is that any future route that queries `Membership` directly (bypassing `withAuthScoped`) would also need to filter `status: "ACTIVE"` — this is enforced by convention, not by the type system. The PM5 status gate is a single-point chokepoint in `withAuthScoped`; all 158+ `ctx.role === "..."` sites downstream are automatically covered without per-route changes.
 
-#### Impact
+#### Admin cleanup endpoint authorisation
 
-- **Likelihood**: Medium (validation gaps are common)
-- **Impact**: High (data corruption, integrity violations, inconsistent state)
-- **Business Impact**: Corrupted student records, invalid blog content, system instability
+**Source**: `src/app/api/admin/cleanup/route.ts`
 
-#### Mitigation Strategies
+The cleanup endpoint (`POST /api/admin/cleanup`) uses a simple `ADMIN_SECRET` header check (`function authorized(req: NextRequest): boolean`). It does not use the session-based RBAC system. This means it bypasses `organisationId` scoping entirely — it operates on the entire database.
 
-1. **Model-Level Validation**
-   - Implement validation in models using custom methods
-   - Use attribute casting for type safety
-   - Implement accessor/mutator methods for data transformation
-
-2. **Code Example**:
-```php
-// app/Models/User.php
-class User extends Model
-{
-    protected $fillable = ['name', 'email', 'password', 'role'];
-    
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'created_at' => 'datetime',
-    ];
-    
-    protected $hidden = ['password', 'remember_token'];
-    
-    public function setEmailAttribute($value)
-    {
-        $this->attributes['email'] = strtolower($value);
-    }
-    
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-}
-```
-
-3. **Relationship Integrity**
-   - Define foreign key constraints in migrations
-   - Implement cascade delete where appropriate
-   - Use soft deletes for audit trail
-
-4. **Database Constraints**
-   - Add NOT NULL constraints for required fields
-   - Implement UNIQUE constraints for email, username
-   - Add CHECK constraints for enum-like fields
+**Risk**: The `ADMIN_SECRET` is a single shared secret. If leaked it grants full cleanup capability across all organisations. It is not scoped per-organisation.
 
 ---
 
-### HR-003: Missing Database Integrity Constraints
+### 1.6 GitHub Integration
 
-**Severity**: HIGH  
-**Category**: Data Integrity  
-**Affected Components**: Database schema, migrations, relationships
+**Source**: `src/lib/repo-context/client.ts`
 
-#### Risk Description
+`getInstallationToken()` caches GitHub installation access tokens in a module-level `_tokenCache` Map with a 50-minute TTL. This cache is in-memory only — it is lost on process restart.
 
-The application may lack proper database-level constraints that ensure data integrity. Missing foreign key constraints, unique constraints, and check constraints could allow invalid data to persist.
+**Risk**: After a restart, the first repo-context request for each installation will incur a GitHub API call to fetch a new token. This is functionally correct but means the cache provides no benefit immediately after restart. In multi-worker deployments each worker maintains its own token cache, multiplying GitHub API calls by worker count.
 
-#### Evidence
+#### GitHub App private key in environment
 
-**File**: `database/migrations/` (requires examination)  
-Migration files need verification for:
-- Foreign key constraints with proper cascade rules
-- Unique constraints on email, username fields
-- NOT NULL constraints on required fields
-- CHECK constraints for enum-like fields
-- Proper indexing for performance and uniqueness
+**Source**: `src/lib/repo-context/client.ts` (`getPrivateKeyPem()`)
 
-#### Impact
+The GitHub App RSA private key is stored in `GITHUB_APP_PRIVATE_KEY` environment variable (PEM format). `createAppJWT()` uses this key to sign JWTs for GitHub App authentication.
 
-- **Likelihood**: Medium (common in rapid development)
-- **Impact**: High (data corruption, referential integrity violations)
-- **Business Impact**: Orphaned records, inconsistent data, reporting inaccuracies
+**Risk**: If the private key is leaked (e.g. via an environment variable exposure), an attacker can impersonate the GitHub App for all installations. The key has no rotation mechanism in the application code. Key rotation requires updating the env var and redeploying.
 
-#### Mitigation Strategies
+#### Central scan: temp directory residue on process crash
 
-1. **Foreign Key Constraints**
-   - Add foreign keys to all relationships
-   - Configure cascade delete/update appropriately
-   - Document constraint strategy
+**Source**: `src/app/api/projects/[id]/code-health/scan/route.ts`, `src/lib/code-health.ts`
 
-2. **Code Example** (migration):
-```php
-Schema::create('blogs', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('user_id')
-        ->constrained('users')
-        ->onDelete('cascade')
-        ->onUpdate('cascade');
-    $table->string('title')->unique();
-    $table->text('content');
-    $table->timestamps();
-    $table->softDeletes();
-    
-    $table->index('user_id');
-    $table->index('created_at');
-});
-```
+During a CENTRAL scan, repo source is written to `/tmp/pulse-scan-{projectId}-{ts}/` (code health) or `/tmp/pulse-sec-scan-{projectId}-{ts}/` (security). The `finally` block in both routes calls `rmSync(tmpDir, { recursive: true, force: true })` to hard-delete it. If the Node.js process crashes (SIGKILL, OOM) between tarball extraction and the `finally` block, the source tree remains on disk until the next process start.
 
-3. **Unique Constraints**
-   - Add unique constraints to email, username
-   - Implement composite unique constraints where needed
-   - Handle constraint violations gracefully
+**Mitigation**: The boot-time IIFE in `code-health.ts` removes any `/tmp/pulse-scan-*` or `/tmp/pulse-sec-scan-*` dir older than 30 minutes on module load, so residue is cleaned up on the next restart. The dir contains only source code (no secrets, no credentials). Logs above DEBUG level do not include the temp path.
 
-4. **Indexing Strategy**
-   - Index foreign keys
-   - Index frequently searched columns
-   - Index columns used in WHERE clauses
-   - Monitor query performance
+**Residual risk**: a narrow window between process crash and restart where source code sits on the host's `/tmp`. Acceptable for single-host self-hosted deployment; for shared or cloud host, ensure `/tmp` is ephemeral (e.g. `tmpfs`).
 
 ---
 
-### HR-004: Inadequate Logging and Monitoring
+## 2 Performance Risks
 
-**Severity**: HIGH  
-**Category**: Operational  
-**Affected Components**: Logging, monitoring, observability
+### 2.1 In-memory metrics store
 
-#### Risk Description
+**Source**: `src/lib/metrics.ts`
 
-The application lacks comprehensive logging and monitoring capabilities. Missing audit trails, performance monitoring, and security event logging could prevent detection of attacks and operational issues.
+The metrics store is a module-level in-memory object (`const store: MetricsStore = {}`). It accumulates per-route request counts, error counts, and latency samples for a 24-hour rolling window. The store is never persisted to disk or external storage.
 
-#### Evidence
+**Risk**: On process restart all accumulated metrics are lost — the 24-hour window resets to zero. In a multi-worker deployment each worker maintains its own store; the `/api/metrics` endpoint only reflects the state of the single worker that handles the request. Metrics aggregation across workers is not implemented.
 
-**File**: `config/logging.php`  
-Logging configuration exists but requires verification of:
-- Log level configuration (should be `error` or `warning` in production)
-- Log rotation and retention policies
-- Structured logging implementation
-- Sensitive data filtering
+### 2.2 In-memory OTEL trace store
 
-**File**: `bootstrap/app.php`  
-No explicit monitoring or health check configuration visible beyond basic `/up` endpoint.
+**Source**: `src/lib/otel.ts`
 
-#### Impact
+OTEL traces are collected in-memory within each request via `startTrace()` / `commitTrace()`. Completed traces are stored in a module-level array. There is no export to an OTEL collector or persistent backend.
 
-- **Likelihood**: High (common in development-focused projects)
-- **Impact**: High (inability to detect attacks, slow incident response, compliance violations)
-- **Business Impact**: Undetected security breaches, slow incident response, regulatory non-compliance
+**Risk**: Trace data is lost on restart. In production, without an OTEL backend, distributed tracing provides no persistent observability. The in-memory accumulation may grow without bound if `commitTrace()` is not called (e.g. on thrown errors), though each request creates a new `TraceContext`.
 
-#### Mitigation Strategies
+### 2.3 AI provider not live-tested in production
 
-1. **Comprehensive Logging**
-   - Log all authentication attempts (success and failure)
-   - Log authorization failures
-   - Log data access for sensitive operations
-   - Log system errors and exceptions
-   - Implement structured logging (JSON format)
+**Source**: `notes/pending-work.txt`, `src/lib/narrate.ts`
 
-2. **Code Example**:
-```php
-// In controllers
-Log::info('User login attempt', [
-    'email' => $request->email,
-    'ip' => $request->ip(),
-    'user_agent' => $request->userAgent(),
-    'timestamp' => now(),
-]);
+The narration and summary features use Groq Llama 3.3 70B (`createGroq` + `llama-3.3-70b-versatile`). The pending-work note states: *"ANTHROPIC_API_KEY not set — narration/summary not live-tested in production."* Note: the `.env.example` references `GEMINI_API_KEY` and the archdoc specifies `claude-sonnet-4-6`, but the actual code uses `GROQ_API_KEY`. The env example is stale.
 
-// On success
-Log::info('User logged in', [
-    'user_id' => $user->id,
-    'ip' => $request->ip(),
-]);
+**Risk**: The AI integration is untested end-to-end in the current production environment. Any call to `generateNarration()` or `generateFeedSummary()` that hits the Groq API will fail unless `GROQ_API_KEY` is set. The error handling falls back gracefully (returns `null` / empty string), so failures are silent from the user's perspective.
 
-// On failure
-Log::warning('Failed login attempt', [
-    'email' => $request->email,
-    'ip' => $request->ip(),
-    'attempts' => $this->limiter()->attempts($key),
-]);
-```
+### 2.4 Narration cooldown is in-memory
 
-3. **Monitoring and Alerting**
-   - Implement application performance monitoring (APM)
-   - Set up alerts for:
-     - Failed authentication attempts
-     - Authorization failures
-     - Database errors
-     - Performance degradation
-     - Disk space issues
+**Source**: `src/lib/narrate.ts`
 
-4. **Health Checks**
-   - Implement comprehensive health check endpoint
-   - Check database connectivity
-   - Check cache connectivity
-   - Check file system access
-   - Monitor response times
+`generateNarration()` uses a module-level `cooldowns` Map to prevent re-generating a narration for the same input hash within a cooldown window. This map is in-memory only.
 
-5. **Audit Logging**
-   - Log all data modifications (create, update, delete)
-   - Track who made changes and when
-   - Implement audit trail for compliance
-   - Use Laravel's audit packages (Spatie Activity Log)
+**Risk**: On process restart all cooldowns are cleared. If a burst of ingest events triggers narration before the cooldown re-establishes, duplicate narrations may be generated for the same content, incurring unnecessary AI API cost.
+
+### 2.5 Synchronous sonar-scanner blocks the Node.js process (Code Health, Phase 9)
+
+**Source**: `src/app/api/projects/[id]/code-health/scan/route.ts`, `src/lib/code-health.ts`
+
+`POST /api/projects/[id]/code-health/scan` calls `runSonarScanner()` which uses `child_process.execSync` with a default 5-minute timeout. During this call the Node.js event loop is blocked — no other requests can be processed by this worker.
+
+**Risk**: In a single-process deployment a scan request freezes all concurrent users for up to 5 minutes. The 1/120s rate limiter reduces frequency but does not eliminate the blocking window.
+
+**Mitigation**: Acceptable for the current single-user self-hosted deployment. A future scale-up would require async execution via a job queue (e.g. BullMQ + Redis).
+
+### 2.6 SonarQube RAM requirement
+
+**Source**: `scripts/sonarqube-start.sh`
+
+SonarQube CB requires approximately 1.8 GB RAM under the JVM caps applied in `sonarqube-start.sh` (web/CE 256 MB, Elasticsearch 512 MB each). The host WSL2 environment has ~6 GB available.
+
+**Risk**: If the host machine has less than 2 GB free, SonarQube will fail to start or the OOM killer may terminate it. No health-check gate exists in the app — `SONAR_HOST_URL` availability is not validated at startup. The POST scan route returns 503 if env vars are missing, but not if SonarQube is running but unresponsive.
+
+### 2.7 Bcrypt at cost 12 on signup
+
+**Source**: `src/app/api/auth/signup/route.ts`
+
+Password hashing uses bcrypt at cost 12. On a typical server this takes ~300–500 ms per hash. With no signup rate limiting (see §1.1), an attacker can issue concurrent signup requests to saturate CPU.
+
+**Risk**: CPU-bound bcrypt exhaustion is possible without signup rate limiting. This is a compounding risk with the missing rate limit documented in §1.1.
+
+### 2.8 Debt scan shares the code-health concurrency semaphore (Phase B)
+
+**Source**: `src/lib/debt/orchestrate.ts`, `src/lib/code-health.ts`
+
+`runDebtScanPipeline` calls `tryAcquireScanSlot()` / `releaseScanSlot()` from `code-health.ts`. `MAX_CONCURRENT_SCANS = 2` is a shared limit between code-health scans and debt scans. A debt scan in progress can block a code-health scan (and vice-versa).
+
+**Risk**: In practice, a debt scan holds the slot for the full SonarQube CE duration (up to 3 min CE timeout + 5 min scanner timeout = ~8 min worst case). During this window a concurrent code-health scan POST would return `scan_capacity_exceeded`. Acceptable for current single-org deployment; would need a separate semaphore if both feature sets scale simultaneously.
+
+### 2.9 Debt scan issues API uses ps=500 hard limit (Phase B)
+
+**Source**: `src/lib/code-health.ts` — `fetchSonarIssues`
+
+The `/api/issues/search` call uses `&ps=500` (SonarQube's maximum page size). For repositories with more than 500 BLOCKER+CRITICAL+MAJOR issues, only the first 500 are fetched; `issueCount`, `criticalCount`, and `highCount` will be under-reported.
+
+**Risk**: Counts silently truncated for very large or very old codebases. Mitigation for Phase D: implement cursor pagination using SonarQube's `&p=` parameter if `paging.total > 500`.
 
 ---
 
-### HR-005: Missing Rate Limiting and DDoS Protection
+## 3 Scalability Risks
 
-**Severity**: HIGH  
-**Category**: Security  
-**Affected Components**: Authentication, API endpoints, form submissions
+### 3.1 All rate limiters fail open without Redis
 
-#### Risk Description
+**Source**: `src/lib/ratelimit.ts` and all sibling files; `notes/pending-work.txt`
 
-The application lacks comprehensive rate limiting on sensitive endpoints. This could allow brute force attacks on login, password reset, and registration endpoints.
+As documented in §1.2, all Upstash-backed rate limiters return `{ allowed: true }` when Redis is unreachable. The pending-work note confirms Redis is not provisioned in the current production deployment.
 
-#### Evidence
+**Risk**: Without Redis, there are no effective per-token or per-user rate limits on ingest, summary, export, or GitHub endpoints. A single misbehaving client can exhaust database connections or incur unbounded AI API costs.
 
-**File**: `app/Http/Controllers/AccountController.php`  
-Registration and login endpoints lack rate limiting configuration. No throttle middleware visible on:
-- Registration endpoint
-- Login endpoint
-- Password reset endpoint
+### 3.2 Scale tier multiplier is a single env var
 
-**File**: `routes/web.php`  
-Route definitions require verification of rate limiting middleware application.
+**Source**: `src/lib/ratelimit.ts` (`getScaleTierMultiplier()`)
 
-#### Impact
+`SCALE_TIER` is an integer env var (1–4) that multiplies rate limit ceilings by its value (e.g. `SCALE_TIER=4` gives 4× the base limits). This is tested in `src/tests/rate-limits.test.ts` for tiers 1 and 4.
 
-- **Likelihood**: High (common attack vector)
-- **Impact**: High (account takeover, service disruption, brute force attacks)
-- **Business Impact**: Compromised user accounts, service unavailability, reputation damage
+**Risk**: Scaling up rate limits requires a redeploy to change the env var. There is no runtime API to adjust limits per-organisation or per-project. A single large customer cannot be given higher limits without raising limits for all customers.
 
-#### Mitigation Strategies
+### 3.3 Cost ceiling is per-organisation, not per-project
 
-1. **Rate Limiting Configuration**
-   - Apply throttle middleware to sensitive endpoints
-   - Implement different limits for different endpoints
-   - Use IP-based and user-based rate limiting
+**Source**: `src/lib/cost-ceiling.ts`
 
-2. **Code Example** (routes/web.php):
-```php
-Route::middleware('throttle:5,1')->group(function () {
-    Route::post('/account/process-register', [AccountController::class, 'processRegistration']);
-    Route::post('/account/process-login', [AccountController::class, 'processLogin']);
-});
+`isCeilingExceeded()` checks monthly spend against `CLAUDE_MONTHLY_CEILING_USD` at the organisation level. Individual projects within an organisation can consume the entire budget before other projects get a chance.
 
-Route::middleware('throttle:3,1')->group(function () {
-    Route::post('/password/reset', [PasswordController::class, 'reset']);
-});
-```
+**Risk**: A high-activity project can exhaust the organisation's monthly AI budget, blocking all other projects from generating narrations and summaries. There is no per-project sub-ceiling.
 
-3. **Custom Rate Limiting**
-   - Implement custom rate limiter for specific scenarios
-   - Track failed attempts per IP and user
-   - Implement progressive delays (exponential backoff)
+### 3.4 Instrumentation boot guard
 
-4. **DDoS Protection**
-   - Use CDN with DDoS protection (Cloudflare, AWS CloudFront)
-   - Implement IP whitelisting for admin endpoints
-   - Monitor traffic patterns for anomalies
+**Source**: `instrumentation.ts`
+
+`register()` throws at startup in production (`NODE_ENV === "production"`) if `CLAUDE_MONTHLY_CEILING_USD` is not set. This prevents deployments without a cost ceiling.
+
+**Risk**: Low — the guard is intentional and tested. However, it means any production deployment missing this env var will fail to start, which is a hard dependency on a configuration value that may not be obviously required.
 
 ---
 
-### HR-006: Insufficient File Upload Security
+## 4 Technical Debt
 
-**Severity**: HIGH  
-**Category**: Security  
-**Affected Components**: File upload handling, storage, image processing
+### 4.1 AI provider mismatch across documentation and code
 
-#### Risk Description
+**Sources**: `notes/axis-pulse-archdoc.md`, `src/lib/narrate.ts`, `src/lib/gemini.ts`, `.env.example`
 
-File upload functionality lacks comprehensive security controls. Missing validation of file types, sizes, and content could allow malicious file uploads.
+| Layer | States |
+|-------|--------|
+| archdoc §7 | `claude-sonnet-4-6` (Anthropic) |
+| `.env.example` | `GEMINI_API_KEY` (Google) |
+| `src/lib/narrate.ts` (actual) | `createGroq` + `llama-3.3-70b-versatile` (Groq) |
+| `src/lib/gemini.ts` (actual) | also uses `createGroq` despite the filename |
 
-#### Evidence
+The file `src/lib/gemini.ts` is named after Google Gemini but imports `@ai-sdk/groq` and calls the Groq provider. The env example shows `GEMINI_API_KEY` but the code reads `GROQ_API_KEY`.
 
-**File**: `app/Http/Controllers/StudentController.php`  
-Profile image upload requires verification of:
-- MIME type validation
-- File size limits
-- File content validation
-- Malware scanning
-- Secure storage location
+**Risk**: Any developer reading the archdoc or `.env.example` will provision the wrong credentials. The mismatch creates confusion about which AI provider is actually in use and which API key must be set for narration to function.
 
-**File**: `config/filesystems.php`  
-File storage configuration requires verification of:
-- Upload directory permissions
-- Public vs. private storage
-- Access controls
+### 4.2 Legacy agent token fallback not yet retired
 
-#### Impact
+**Source**: `src/lib/resolveAgentToken.ts`, `prisma/schema.prisma`
 
-- **Likelihood**: Medium (common vulnerability)
-- **Impact**: High (malware injection, XSS attacks, storage exhaustion)
-- **Business Impact**: Malware distribution, user account compromise, storage costs
+`Project.agentTokenHash` is nullable in the schema (for projects that have been migrated to per-developer `AgentToken` rows). The fallback path in `resolveAgentToken()` is acknowledged as tech debt with a TODO comment. No migration script exists to backfill `AgentToken` rows for all existing projects.
 
-#### Mitigation Strategies
+**Risk**: The legacy path will remain in production indefinitely unless a migration is written and run. Events ingested via the legacy path cannot be attributed to a specific developer.
 
-1. **File Upload Validation**
-   - Validate MIME types using `mimes:` rule
-   - Implement file size limits
-   - Validate file content (magic bytes)
-   - Scan for malware using ClamAV or similar
+### 4.3 Coolify deployment not wired
 
-2. **Code Example**:
-```php
-$validated = $request->validate([
-    'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048|dimensions:min_width=100,min_height=100',
-]);
+**Source**: `notes/pending-work.txt`
 
-if ($request->hasFile('profile_image')) {
-    $file = $request->file('profile_image');
-    
-    // Validate MIME type
-    if (!in_array($file->getMimeType(), ['image/jpeg', 'image/png', 'image/gif'])) {
-        throw new \Exception('Invalid file type');
-    }
-    
-    // Store securely
-    $path = $file->store('profiles', 'private');
-    $user->profile_image = $path;
-}
-```
+The pending-work note states: *"Coolify deploy not wired — production deployment is manual."* No CI/CD pipeline exists.
 
-3. **Secure Storage**
-   - Store uploads outside web root
-   - Use private storage for sensitive files
-   - Implement access controls for file retrieval
-   - Serve files through controller to enforce permissions
+**Risk**: Manual deployments are error-prone. Environment variables may be set inconsistently between deployments. There is no automated rollback on failed deployments.
 
-4. **File Processing**
-   - Re-encode images to remove embedded code
-   - Use Intervention/Image library for image processing
-   - Implement virus scanning for all uploads
-   - Set proper file permissions (644 for files, 755 for directories)
+### 4.4 `idleSeconds` / `offlineSeconds` columns retained but not written
+
+**Source**: `prisma/schema.prisma`, `src/app/api/ingest/time/route.ts`
+
+`MemberDailyTime.idleSeconds` and `MemberDailyTime.offlineSeconds` were removed from ingest writes in P12 but the columns were not dropped. Old rows contain real data; new rows contain zero. No migration marks the transition point in the data.
+
+**Risk**: Analytics queries that read these columns will silently mix real historical idle/offline seconds with zeroed values, producing incorrect averages. The schema retains dead columns indefinitely.
+
+### 4.5 Duplicate redaction implementations
+
+**Source**: `src/lib/redact.ts`, `lib/redact.mjs`
+
+Two copies of the same redaction pipeline are maintained. The parity test (`src/tests/redact-parity.test.ts`) catches divergence but requires both files to be updated simultaneously for every rule change.
+
+**Risk**: A developer who updates only one file will create a parity failure. The parity test is the only guardrail; there is no shared source of truth (e.g. a single ESM module imported by both environments).
+
+### 4.6 Three unresolved production blockers
+
+**Source**: `notes/pending-work.txt`
+
+Three items are explicitly documented as unresolved:
+1. **Redis not provisioned** — all Upstash rate limiters fail open.
+2. **`GROQ_API_KEY` not set** — narration and summary are not live-tested.
+3. **Coolify deploy not wired** — deployment is manual.
+
+**Risk**: The application is running in production with known gaps in rate limiting, AI integration, and deployment automation.
 
 ---
 
-### HR-007: Missing API Authentication and Rate Limiting
+## 5 Compliance & Privacy Risks
 
-**Severity**: HIGH  
-**Category**: Security  
-**Affected Components**: API endpoints, external integrations
+### 5.1 Consent versioning and re-acknowledgement
 
-#### Risk Description
+**Sources**: `src/lib/consentCheck.ts`, `src/lib/pulse-body-shape.ts`
 
-If the application exposes API endpoints, they may lack proper authentication and rate limiting. This could allow unauthorized access and abuse.
+Consent v2 adds collection of `topApps` (application names from the developer's workstation). Users with consent v1 are required to re-acknowledge before `topApps` data is accepted. `needsConsentModal()` checks the stored consent version against the required version.
 
-#### Evidence
+**Risk**: If a client submits `topApps` data without re-acknowledgement (e.g. by posting directly to `/api/ingest/time`), the server must correctly reject or strip the field. The `assertBodyShape()` function in `src/lib/pulse-body-shape.ts` validates the ingest body shape but does not itself check consent status — the consent check is performed in the route handler. A route that forgets to call the consent check will accept `topApps` without v2 consent.
 
-**File**: `routes/api.php` (if present)  
-API routes require verification of:
-- Authentication middleware (Sanctum, Passport)
-- Rate limiting per API key/user
-- API key validation
-- CORS configuration
+### 5.2 App names as personal data
 
-#### Impact
+**Source**: `src/lib/pulse-body-shape.ts` (`topApps` field)
 
-- **Likelihood**: Medium (depends on API exposure)
-- **Impact**: High (unauthorized data access, service abuse)
-- **Business Impact**: Data breach, service disruption, unauthorized integrations
+Application names (e.g. "Signal", "ProtonMail", "Grindr") may qualify as sensitive personal data under GDPR Article 9 (health, sexual orientation, religion) depending on the software installed.
 
-#### Mitigation Strategies
+**Risk**: `topApps` is stored in the `MemberDailyTime` record without any sensitivity classification or retention limit distinct from other time data. There is no mechanism to selectively delete only `topApps` data for a specific user without deleting their entire time record.
 
-1. **API Authentication**
-   - Implement Laravel Sanctum for token-based authentication
-   - Use API keys with proper rotation
-   - Implement OAuth2 for third-party integrations
+### 5.3 Audit log coverage
 
-2. **Code Example** (routes/api.php):
-```php
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
-    
-    Route::apiResource('blogs', BlogController::class);
-});
-```
+**Source**: `src/lib/audit.ts`, `src/app/api/admin/cleanup/route.ts`
 
-3. **Rate Limiting**
-   - Apply rate limiting to all API endpoints
-   - Use different limits for different endpoints
-   - Implement quota management
+`writeAudit()` records administrative and RBAC-sensitive actions (project PATCH, team changes, cleanup runs). The audit log is a Postgres table (`AuditLog`). The cleanup endpoint writes an audit entry only for non-dry-run executions (verified by `src/tests/phase7-hardening.test.ts`).
 
-4. **CORS Configuration**
-   - Configure CORS properly in `config/cors.php`
-   - Whitelist allowed origins
-   - Restrict allowed methods and headers
+**Risk**: Audit log coverage is event-driven (developers must call `writeAudit()`). There is no database-level trigger that captures all changes. New routes that modify sensitive data may omit audit writes. The audit log has no defined retention policy or export mechanism beyond the admin UI.
+
+### 5.4 Session token in logs
+
+**Source**: `src/lib/auth.ts`, pino redact config
+
+The pino redact config includes `sessionExcerpt` as a redacted path. However, if any new log call includes the raw session cookie value under a field name not in the redact list, it will appear in logs unredacted.
+
+**Risk**: Low — the existing redact config is comprehensive and tested. The risk is residual: future log additions not audited against the redact list.
+
+### 5.5 Sentry error reporting
+
+**Sources**: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
+
+Sentry is configured for error reporting. By default Sentry may capture request bodies, user identifiers, and stack frames that contain local variable values.
+
+**Risk**: If Sentry captures a request body containing a password or token before the redaction pipeline runs, PII may be sent to Sentry's servers. The Sentry SDK's `beforeSend` hook is not configured in the source files to strip sensitive data. This should be verified against the actual Sentry dashboard configuration.
 
 ---
 
-## Medium Risks
+## 6 Recommended Mitigations
 
-### MR-001: Outdated Dependencies and Security Vulnerabilities
+Ordered by estimated impact × ease. Each item references the finding above.
 
-**Severity**: MEDIUM  
-**Category**: Dependency Management  
-**Affected Components**: Composer packages, npm packages
+| # | Finding | Mitigation | Priority |
+|---|---------|-----------|----------|
+| M1 | §1.2 — fail-open rate limiters | Provision Upstash Redis. All Upstash limiters activate automatically once `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set. | **P0 — blockers** |
+| M2 | §4.1 — AI provider mismatch | Update `.env.example` to replace `GEMINI_API_KEY` with `GROQ_API_KEY`. Rename `src/lib/gemini.ts` to `src/lib/feed-summary.ts`. Update archdoc §7 to reflect Groq. | **P0 — correctness** |
+| M3 | §1.1 — no signup rate limit | Add the same dual-window in-memory + Upstash rate limiter used by login to the signup route. Limit: 3/min/IP + 10/hr/IP. | **P1 — security** |
+| M4 | §1.4 — missing security headers | Add `X-Frame-Options: DENY` and `Permissions-Policy: camera=(), microphone=(), geolocation=()` to `applySecurityHeaders()` in `src/middleware.ts`. | **P1 — security** |
+| M5 | §1.1 — missing pepper assertion | Add a startup check in `instrumentation.ts`: throw if `AGENT_TOKEN_PEPPER` is absent in production (same pattern as `CLAUDE_MONTHLY_CEILING_USD` guard). | **P1 — security** |
+| M6 | §1.2 — public metrics endpoint | Add session-based auth to `GET /api/metrics` restricted to `MANAGER` role. Remove `/api/metrics` from `PUBLIC_PREFIXES` in `src/middleware.ts`. | **P1 — security** |
+| M7 | §4.2 — legacy agent token fallback | Write a one-time migration script that creates an `AgentToken` row for every project that still has a `Project.agentTokenHash`. Remove the fallback path from `resolveAgentToken()` once confirmed all projects have ≥1 row. | **P2 — tech debt** |
+| M8 | §3.1 — in-memory rate limiters reset on restart | For the login rate limiter specifically, consider persisting the IP block list to Redis. For other in-memory limiters the restart-reset risk is acceptable given the short windows. | **P2 — scalability** |
+| M9 | §4.5 — duplicate redaction | Consolidate `src/lib/redact.ts` and `lib/redact.mjs` into a single ESM file importable by both the Next.js server and Node.js scripts. | **P2 — maintainability** |
+| M10 | §5.2 — app names as sensitive data | Add a retention policy for `topApps` data (e.g. purge after 90 days via the cleanup job). Add a note to the consent modal identifying app names as a distinct data category. | **P2 — compliance** |
+| M11 | §1.4 — `style-src 'unsafe-inline'` | Audit all inline `style` usage in Next.js components. Replace inline styles with CSS classes to enable removal of `'unsafe-inline'` from the CSP. | **P3 — hardening** |
+| M12 | §5.5 — Sentry PII | Add a `beforeSend` hook in `sentry.server.config.ts` that strips request body fields matching the pino redact path list before events are transmitted. | **P3 — compliance** |
+| M13 | §3.2 — scale tier is a single env var | Implement per-organisation rate limit overrides stored in the database. Allow MANAGERs to view their organisation's current tier without a redeploy. | **P3 — scalability** |
+| M14 | §4.4 — dead schema columns | Write a Prisma migration to drop `MemberDailyTime.idleSeconds` and `MemberDailyTime.offlineSeconds` after verifying no production analytics query reads them. | **P3 — maintainability** |
+| M15 | §4.3 — no CI/CD | Wire Coolify deployment. Add a GitHub Actions workflow that runs `pnpm test` on PR and triggers a Coolify deploy on merge to `main`. | **P3 — operations** |
 
-#### Risk Description
+| P20 | `process.cwd()` as scan root may not be the project codebase root on a non-standard deployment | In a containerised or multi-service deployment, `process.cwd()` is the application working directory, which may be `/app` or the Next.js root — not the developer's project directory. The readiness scan would scan the Axis Pulse source code itself, not the project being measured. | Source: [`src/app/api/projects/[id]/readiness/scan/route.ts`](src/app/api/projects/[id]/readiness/scan/route.ts) — `scanMarkersInDir(process.cwd())`. Mitigation: ADR-readiness-003 acknowledges this as Phase 8 LOCAL ONLY scope. Phase 9 should allow a configurable scan path or a separate agent-side scan CLI. |
+| P21 | `ReadinessSnapshot` rows are never pruned — unbounded growth | There is no retention/cleanup job for `ReadinessSnapshot`. A project that scans daily for a year accumulates 365+ rows. The GET route caps the OLS window at 90, so accuracy is unaffected, but DB storage will grow without bound. | Source: [`src/app/api/projects/[id]/readiness/route.ts`](src/app/api/projects/[id]/readiness/route.ts) — `take: 90`. Mitigation: Add `ReadinessSnapshot` to the cleanup job in `POST /api/admin/cleanup`, pruning rows older than 90 days per project. |
+| P22 | Security CLI tools (Semgrep CE, gitleaks, osv-scanner) not installed on the server silently produce 0 findings | `runAllSecurityTools` in `src/lib/security-scan.ts` catches individual tool failures and returns 0 findings per missing tool. The catch-and-continue design is intentional (ADR-security-scan-001), but operators have no visibility into which tools actually ran unless they inspect `SecurityScanRun.toolsRun`. A deployment missing all three tools will always show `scanned_clean` even though no scan occurred. | Source: `src/lib/security-scan.ts` (catch blocks in `runSemgrep`, `runGitleaks`, `runOsvScanner`). Mitigation: `toolsRun` JSON on `SecurityScanRun` records which tools actually executed. A future health-check or admin panel could warn when `toolsRun` is empty. |
+| P23 | Semgrep CE scan on large repositories may timeout and produce partial results | `runSemgrep` uses the default `--config=auto` ruleset. On a repository with hundreds of files, Semgrep may take more than 120 seconds, which is the default timeout used in the scan route's semaphore window. If the process is killed mid-scan, the output JSON will be incomplete and `parseSemgrepOutput` may return an empty array. | Source: `src/lib/security-scan.ts` — `runSemgrep`. Mitigation: Add an explicit `--timeout` flag to the semgrep invocation (e.g. `--timeout 90`) and catch JSON parse errors gracefully. |
+| P24 | gitleaks may flag `.env.example` as a secret-containing file (false positive) | `.env.example` contains placeholder values like `your_token_here` and example connection strings. gitleaks pattern matching on entropy or regex may trigger false positives on example values. | Source: `src/lib/security-scan.ts` — `runGitleaks`. Mitigation: Add a `.gitleaksignore` or `gitleaks.toml` config file to the repository root specifying `.env.example` as an allowed file. |
+| P25 | `ANTHROPIC_KEY_ENCRYPTION_SECRET` rotation requires a one-time re-encrypt of all stored org keys | `Organisation.anthropicApiKeyEnc` is encrypted using AES-256-GCM keyed on `ANTHROPIC_KEY_ENCRYPTION_SECRET`. If the secret is rotated without a migration script, all stored keys become unreadable — AI calls silently fall back to free models with no explicit error surfaced to MANAGERs. | Source: `src/lib/anthropic-key.ts` — `decryptApiKey`. Mitigation: Document the re-encrypt procedure in runbooks; `decryptApiKey` logs an error and returns `null` on failure so fallback behaviour is safe (never crashes). |
 
-The application depends on third-party packages that may contain security vulnerabilities. Outdated packages could expose the application to known exploits.
+| P25 | ~~Admin management routes must write `role`/`teamId`/`isLineManager` to `Membership`, never to `User` — enforced by convention and tests only, not by the type system~~ **CLOSED — PM6 shipped** | The `User.role`, `User.teamId`, `User.isLineManager`, and `User.organisationId` columns have been dropped (migration `20260622000001_drop_user_legacy_cols`, 2026-06-22). Any code that attempts `db.user.update({ data: { role: ... } })` now produces a Prisma client compile error. The convention risk is a compile-time guarantee. | Source: `prisma/migrations/20260622000001_drop_user_legacy_cols/migration.sql`. Closed by ADR-028. |
 
-#### Evidence
-
-**File**: `composer.json`  
-Dependency list requires verification of:
-- Package versions and update frequency
-- Known vulnerabilities in dependencies
-- Maintenance status of packages
-- License compliance
-
-**File**: `package.json`  
-Frontend dependencies require similar verification.
-
-#### Impact
-
-- **Likelihood**: Medium (depends on update frequency)
-- **Impact**: Medium to High (depends on vulnerability severity)
-- **Business Impact**: Security vulnerabilities, compliance violations, system instability
-
-#### Mitigation Strategies
-
-1. **Dependency Management**
-   - Regularly update dependencies using `composer update` and `npm update`
-   - Monitor for security advisories using `composer audit` and `npm audit`
-   - Use Dependabot or similar tools for automated updates
-   - Test updates in staging before production deployment
-
-2. **Vulnerability Scanning**
-   - Implement automated vulnerability scanning in CI/CD
-   - Use tools like Snyk, WhiteSource, or GitHub Dependabot
-   - Review security advisories regularly
-   - Create incident response plan for critical vulnerabilities
-
-3. **Code Example** (CI/CD pipeline):
-```yaml
-- name: Check for vulnerabilities
-  run: |
-    composer audit
-    npm audit --audit-level=moderate
-```
-
-4. **Dependency Pinning**
-   - Use specific versions in `composer.json` for production
-   - Avoid using `*` or `^` for critical dependencies
-   - Document version constraints and reasons
-   - Review dependency updates before applying
+| P26 | Drift cooldown, volume counter, and rate-limit store are in-process memory — reset on every process restart | `DRIFT_COOLDOWN_MS` (30 min) and `VOLUME_THRESHOLD` (50 ingest events) are tracked in module-level Maps in `src/lib/drift/orchestrate.ts`. `checkDriftRateLimit()` in `src/lib/ratelimit-drift.ts` uses an in-memory store. A process restart resets all three: (1) the cooldown guard — allowing an immediate re-trigger; (2) the volume counter — losing accumulated progress toward the 50-event threshold; (3) the rate-limit window — resetting the 3/hr per-project limit. This is the same pattern as the narration cooldown (§2.4) and the status/summary in-memory rate limiters. Acceptable for single-process 1x deployment; does not introduce data loss or security risk. | Source: `src/lib/drift/orchestrate.ts` (cooldowns Map, volumeCounters Map), `src/lib/ratelimit-drift.ts` (rateLimitStore Map). Mitigation: For high-availability or multi-process deployments, migrate all three to Upstash Redis sliding-window rate limiters. `ratelimit-drift.ts` is explicitly designed for Upstash-upgradability. |
 
 ---
 
-### MR-002: Insufficient Input Sanitization for XSS Prevention
+| P27 | AI synthesis ceiling gate may leave debt scans in ERROR state | When `CLAUDE_MONTHLY_CEILING_USD` is hit, `isCeilingExceeded` returns true and `synthesiseDebtFindings` exits without calling the AI. The scan is marked ERROR. Raw Sonar data written at the start of the SYNTHESISING step is preserved in the DB — `blockerCount`, `criticalCount`, `majorCount`, `issueCount`, `qualityGate`, and ratings remain available even in ERROR state. Users must re-trigger the scan after the next billing cycle resets spend. Mitigation: the ceiling is configurable — raising `CLAUDE_MONTHLY_CEILING_USD` or unsetting it removes the gate. Source: `src/lib/debt/synthesise.ts` (`isCeilingExceeded` call), `src/lib/debt/orchestrate.ts` (ERROR path). |
 
-**Severity**: MEDIUM  
-**Category**: Security  
-**Affected Components**: Views, template rendering, user-generated content
-
-#### Risk Description
-
-While Laravel's Blade templating provides auto-escaping with `{{ }}`, the application may use raw output `{!! !!}` without proper sanitization, creating XSS vulnerabilities.
-
-#### Evidence
-
-**File**: `resources/views/` (requires examination)  
-View files require verification of:
-- Use of `{{ }}` vs `{!! !!}` syntax
-- Proper escaping of user-generated content
-- HTML purification for rich text content
-- JavaScript event handler escaping
-
-#### Impact
-
-- **Likelihood**: Medium (common in web applications)
-- **Impact**: Medium (session hijacking, credential theft, malware injection)
-- **Business Impact**: User account compromise, data theft, reputation damage
-
-#### Mitigation Strategies
-
-1. **Output Encoding**
-   - Use `{{ }}` syntax for all user-generated content
-   - Use `{!! !!}` only for trusted content
-   - Implement HTML purification for rich text
-
-2. **Code Example**:
-```blade
-<!-- Safe - auto-escaped -->
-<p>{{ $user->name }}</p>
-
-<!-- Unsafe - requires sanitization -->
-<div>{!! $blog->content !!}</div>
-
-<!-- Better - use HTML purifier -->
-<div>{!! Purifier::clean($blog->content) !!}</div>
-```
-
-3. **HTML Purification**
-   - Use HTMLPurifier or similar library
-   - Configure allowed tags and attributes
-   - Sanitize on input or output
-
-4. **Content Security Policy**
-   - Implement CSP headers to restrict script execution
-   - Use nonce-based inline scripts
-   - Monitor CSP violations
+| P28 | Anti-hallucination guard reduces but does not eliminate AI fabrication in debt findings | The `realFiles` guard drops TechDebtFindings whose `evidence.files` contain no file from the actual Sonar issue list or SecurityFinding list. However, the model could hallucinate a realistic-looking file name that happens to already exist in the evidence set (file attribution error, not file invention). The finding's `description` and `recommendation` fields are AI-generated and are not verified beyond the file-match guard. The priority guard ensures only valid P1–P4 strings are stored, but does not validate whether the assigned priority is accurate. Mitigation: the synthesis prompt instructs "only reference files and lines from the provided lists" and "no code excerpts". The guard is a defence-in-depth layer, not a formal proof of accuracy. Source: `src/lib/debt/synthesise.ts` (realFiles guard, priority guard, prompt instructions). |
 
 ---
 
-### MR-003: Missing Database Query Optimization
+| P29 | Feed summary prompt-echo puts raw instructions in the "Active Now" line | Free-tier OpenRouter/Groq models occasionally echo the system prompt instead of completing it. Before this fix, the echoed text was stored verbatim in `ActivityEvent.feedSummary` and surfaced in the dashboard "Active Now" line. The validator in `validateFeedSummary()` (`src/lib/gemini.ts`) now rejects known prompt-echo patterns and falls back to `firstSentence(excerpt)`. **Mitigated** — the validator is the hard guarantee; the `firstSentence` fallback always produces a usable value. Residual risk: new echo patterns not covered by the current `REJECT_PHRASES` / `REJECT_PREFIXES` lists could still slip through. To address, extend the lists in `validateFeedSummary()` as new patterns are observed. Source: `src/lib/gemini.ts` (`validateFeedSummary`), `src/app/api/ingest/event/route.ts` (Stop-event block). |
 
-**Severity**: MEDIUM  
-**Category**: Performance  
-**Affected Components**: Database queries, Eloquent ORM, N+1 queries
-
-#### Risk Description
-
-The application may contain N+1 query problems and inefficient database queries that could cause performance degradation under load.
-
-#### Evidence
-
-**File**: `app/Http/Controllers/BlogController.php`  
-Blog listing requires verification of:
-- Eager loading of relationships using `with()`
-- Pagination implementation
-- Query optimization
-
-**File**: `app/Models/Blog.php`  
-Model relationships require verification of:
-- Proper relationship definition
-- Eager loading configuration
-- Query scopes for common filters
-
-#### Impact
-
-- **Likelihood**: Medium (common in development)
-- **Impact**: Medium (performance degradation, increased database load)
-- **Business Impact**: Slow page loads, poor user experience, increased infrastructure costs
-
-#### Mitigation Strategies
-
-1. **Eager Loading**
-   - Use `with()` to eager load relationships
-   - Avoid N+1 queries in loops
-   - Use `load()` for conditional loading
-
-2. **Code Example**:
-```php
-// Bad - N+1 query problem
-$blogs = Blog::all();
-foreach ($blogs as $blog) {
-    echo $blog->user->name; // Query for each blog
-}
-
-// Good - eager loading
-$blogs = Blog::with('user')->get();
-foreach ($blogs as $blog) {
-    echo $blog->user->name; // No additional queries
-}
-```
-
-3. **Query Optimization**
-   - Use `select()` to limit columns
-   - Implement pagination for large result sets
-   - Use database indexes
-   - Monitor slow queries
-
-4. **Code Example**:
-```php
-$blogs = Blog::with('user:id,name')
-    ->select('id', 'user_id', 'title', 'created_at')
-    ->paginate(15);
-```
-
-5. **Query Monitoring**
-   - Use Laravel Debugbar in development
-   - Implement query logging
-   - Monitor slow query log in production
-   - Use APM tools to identify bottlenecks
+| P30 | Context Drift Analyser false-positive "no drift" verdict when diff contains no comparable docs/code | Before this fix, an assessment where the diff included no context docs and no source files (e.g. only binary files or files that GitHub 404'd) returned an empty findings array, which the UI displayed as "No drift detected — All context docs match the current code." This was a false positive: the AI had no evidence to compare against, so zero findings was not a signal of alignment. The fix adds an `inconclusive` path: when `docs.length === 0 && allCode.length === 0`, the assessment is stored as `COMPLETE` with `error: "inconclusive"` and the UI shows "Inconclusive — no comparable changes in this diff". The `auditDocsAgainstRepoSnapshot()` function provides a diff-independent structural check (framework mismatch detection against `repoSnapshot.detectedFrameworks`) that runs before the inconclusive fallback and can catch "wrong project's docs" scenarios. **Mitigated** — the inconclusive guard is tested in `src/tests/drift-inconclusive.test.ts`. Residual risk: the snapshot audit only detects framework mismatches for the ~30 known framework names in `KNOWN_STACK_TERMS`. A doc describing a bespoke or uncommon framework absent from the list will not be caught by the snapshot audit. Source: `src/lib/drift/analyse-ai.ts` (`auditDocsAgainstRepoSnapshot`, inconclusive guard), `src/lib/drift/orchestrate.ts` (COMPLETE+inconclusive handling), `src/app/context-analyser/[id]/_components/DriftDetailClient.tsx` (`InconclusiveState`). |
 
 ---
 
-### MR-004: Weak Password Reset Mechanism
-
-**Severity**: MEDIUM  
-**Category**: Security  
-**Affected Components**: Password reset functionality, token generation
-
-#### Risk Description
-
-The password reset mechanism may lack proper security controls. Weak tokens, long expiration times, or missing rate limiting could allow account takeover.
-
-#### Evidence
-
-**File**: `app/Http/Controllers/PasswordController.php` (if present)  
-Password reset implementation requires verification of:
-- Token generation using cryptographically secure methods
-- Token expiration (should be 1 hour or less)
-- One-time use enforcement
-- Rate limiting on reset requests
-- Email verification
-
-#### Impact
-
-- **Likelihood**: Medium (common vulnerability)
-- **Impact**: Medium to High (account takeover)
-- **Business Impact**: Unauthorized account access, data breach
-
-#### Mitigation Strategies
-
-1. **Secure Token Generation**
-   - Use Laravel's built-in password reset functionality
-   - Ensure tokens are cryptographically random
-   - Use `Str::random(64)` or similar for token generation
-
-2. **Token Expiration**
-   - Set token expiration to 1 hour
-   - Implement one-time use enforcement
-   - Delete used tokens immediately
-
-3. **Code Example**:
-```php
-// In PasswordController
-public function sendResetLink(Request $request)
-{
-    $request->validate(['email' => 'required|email|exists:users']);
-    
-    Password::sendResetLink(
-        $request->only('email')
-    );
-    
-    return back()->with('status', 'Password reset link sent');
-}
-
-// Token expiration in config/auth.php
-'passwords' => [
-    'users' => [
-        'provider' => 'users',
-        'table' => 'password_reset_tokens',
-        'expire' => 60, // 1 hour
-        'throttle' => 60, // 1 minute between requests
-    ],
-],
-```
-
-4. **Rate Limiting**
-   - Limit password reset requests per email
-   - Implement exponential backoff
-   - Log reset attempts
-
-5. **Email Verification**
-   - Verify email ownership before allowing reset
-   - Send confirmation emails
-   - Implement email verification for new accounts
-
----
-
-### MR-005: Missing Pagination and Potential DoS via Large Queries
-
-**Severity**: MEDIUM  
-**Category**: Performance/Security  
-**Affected Components**: Data listing endpoints, search functionality
-
-#### Risk Description
-
-Endpoints that return large datasets without pagination could be exploited for denial of service attacks or cause performance issues.
-
-#### Evidence
-
-**File**: `app/Http/Controllers/BlogController.php`  
-Blog listing requires verification of:
-- Pagination implementation
-- Query result limits
-- Search result limits
-
-**File**: `app/Http/Controllers/StudentController.php`  
-Student listing requires verification of:
-- Pagination on student lists
-- Result limits on search queries
-
-#### Impact
-
-- **Likelihood**: Medium (common in development)
-- **Impact**: Medium (performance degradation, DoS vulnerability)
-- **Business Impact**: Service unavailability, poor user experience
-
-#### Mitigation Strategies
-
-1. **Pagination Implementation**
-   - Implement pagination on all listing endpoints
-   - Use reasonable page sizes (15-50 items)
-   - Implement cursor-based pagination for large datasets
-
-2. **Code Example**:
-```php
-// In BlogController
-public function index(Request $request)
-{
-    $blogs = Blog::with('user')
-        ->where('status', 'published')
-        ->paginate(15);
-    
-    return view('blogs.index', ['blogs' => $blogs]);
-}
-```
-
-3. **Query Limits**
-   - Implement maximum result limits
-   - Validate page and limit parameters
-   - Use `limit()` to prevent excessive data retrieval
-
-4. **Code Example**:
-```php
-$limit = min($request->get('limit', 15), 100); // Max 100 items
-$page = max($request->get('page', 1), 1);
-
-$blogs = Blog::paginate($limit, ['*'], 'page', $page);
-```
-
-5. **Search Optimization**
-   - Implement full-text search with limits
-   - Use database indexes for search fields
-   - Implement search result pagination
-   - Consider search result caching
-
----
-
-### MR-006: Insufficient Session Security Configuration
-
-**Severity**: MEDIUM  
-**Category**: Security  
-**Affected Components**: Session management, authentication
-
-#### Risk Description
-
-Session configuration may lack proper security settings. Missing secure cookie flags, long session timeouts, or improper session storage could lead to session hijacking.
-
-#### Evidence
-
-**File**: `config/session.php`  
-Session configuration requires verification of:
-- `secure` flag (should be true in production)
-- `http_only` flag (should be true)
-- `same_site` setting (should be 'strict' or 'lax')
-- Session timeout (should be 30 minutes or less)
-- Session storage (database is more secure than file)
-
-#### Impact
-
-- **Likelihood**: Medium (common configuration issue)
-- **Impact**: Medium (session hijacking, unauthorized access)
-- **Business Impact**: Unauthorized account access, data breach
-
-#### Mitigation Strategies
-
-1. **Secure Cookie Configuration**
-   - Set `secure` flag to true in production
-   - Set `http_only` flag to true
-   - Set `same_site` to 'strict' or 'lax'
-
-2. **Code Example** (config/session.php):
-```php
-'secure' => env('SESSION_SECURE_COOKIES', true),
-'http_only' => true,
-'same_site' => 'lax',
-'lifetime' => 30, // 30 minutes
-'expire_on_close' => false,
-```
-
-3. **Session Timeout**
-   - Implement idle timeout (15-30 minutes)
-   - Implement absolute timeout (8 hours)
-   - Warn users before session expiration
-   - Implement session renewal on activity
-
-4. **Session Storage**
-   - Use database storage instead of file storage
-   - Implement session encryption
-   - Regularly clean up expired sessions
-
-5. **Code Example** (middleware):
-```php
-// app/Http/Middleware/SessionTimeout.php
-public function handle($request, Closure $next)
-{
-    if (Auth::check()) {
-        $lastActivity = session('last_activity');
-        
-        if ($lastActivity && now()->diffInMinutes($lastActivity) > 30) {
-            Auth::logout();
-            session()->flush();
-            return redirect('/login')->with('message', 'Session expired');
-        }
-    }
-    
-    session(['last_activity' => now()]);
-    return $next($request);
-}
-```
-
----
-
-### MR-007: Missing Backup and Disaster Recovery Plan
-
-**Severity**: MEDIUM  
-**Category**: Operational  
-**Affected Components**: Data persistence, business continuity
-
-#### Risk Description
-
-The application lacks documented backup and disaster recovery procedures. Data loss or system failure could result in permanent data loss.
-
-#### Evidence
-
-**File**: `config/database.php`  
-Database configuration exists but no backup strategy visible.
-
-**File**: `storage/` directory  
-Storage configuration exists but no backup mechanism visible.
-
-#### Impact
-
-- **Likelihood**: Low to Medium (depends on infrastructure)
-- **Impact**: Critical (data loss, business interruption)
-- **Business Impact**: Permanent data loss, business interruption, regulatory violations
-
-#### Mitigation Strategies
-
-1. **Database Backups**
-   - Implement automated daily backups
-   - Store backups in multiple locations
-   - Test backup restoration regularly
-   - Implement point-in-time recovery
-
-2. **Backup Strategy**
-   - Full backup daily
-   - Incremental backups every 6 hours
-   - Retain backups for 30 days
-   - Store off-site backups
-
-3. **Code Example** (backup script):
-```bash
-#!/bin/bash
-# Daily backup script
-BACKUP_DIR="/backups/mysql"
-DB_NAME="pluspoint_edu"
-DB_USER="root"
-DB_PASS="password"
-
-mkdir -p $BACKUP_DIR
-mysqldump -u $DB_USER -p$DB_PASS $DB_NAME | gzip > $BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql.gz
-
-# Upload to S3
-aws s3 cp $BACKUP_DIR/backup_*.sql.gz s3://backup-bucket/mysql/
-```
-
-4. **Disaster Recovery Plan**
-   - Document recovery procedures
-   - Test recovery regularly (monthly)
-   - Implement RTO (Recovery Time Objective) of 4 hours
-   - Implement RPO (Recovery Point Objective) of 1 hour
-
-5. **File Backups**
-   - Backup uploaded files regularly
-   - Store in cloud storage (S3, Azure Blob)
-   - Implement versioning for file recovery
-
----
-
-## Low Risks
-
-### LR-001: Code Organization and Maintainability
-
-**Severity**: LOW  
-**Category**: Technical Debt  
-**Affected Components**: Code structure, naming conventions, documentation
-
-#### Risk Description
-
-While the application follows Laravel conventions, potential improvements in code organization could improve maintainability and reduce future technical debt.
-
-#### Evidence
-
-**File**: `app/Http/Controllers/`  
-Controller organization requires verification of:
-- Single responsibility principle adherence
-- Method complexity
-- Code duplication
-- Documentation
-
-**File**: `app/Models/`  
-Model organization requires verification of:
-- Relationship definitions
-- Scope definitions
-- Method organization
-
-#### Impact
-
-- **Likelihood**: Low (not a security or performance issue)
-- **Impact**: Low (affects maintainability and development velocity)
-- **Business Impact**: Increased development time, higher bug rates
-
-#### Mitigation Strategies
-
-1. **Code Organization**
-   - Extract complex logic into service classes
-   - Use repository pattern for data access
-   - Implement action classes for complex operations
-   - Create trait classes for shared functionality
-
-2. **Code Example** (service class):
-```php
-// app/Services/UserRegistrationService.php
-class UserRegistrationService
-{
-    public function register(array $data): User
-    {
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => strtolower($data['email']),
-            'password' => Hash::make($data['password']),
-            'role' => $data['role'] ?? 'student',
-        ]);
-        
-        event(new UserRegistered($user));
-        
-        return $user;
-    }
-}
-```
-
-3. **Documentation**
-   - Add PHPDoc comments to all public methods
-   - Document complex algorithms
-   - Create architecture decision records
-   - Maintain API documentation
-
-4. **Code Quality**
-   - Use static analysis tools (PHPStan, Psalm)
-   - Implement code style checking (PHP-CS-Fixer)
-   - Set up automated code review
-   - Establish code review process
-
----
-
-### LR-002: Missing Unit and Integration Tests
-
-**Severity**: LOW  
-**Category**: Quality Assurance  
-**Affected Components**: Testing infrastructure, test coverage
-
-#### Risk Description
-
-The application may lack comprehensive unit and integration tests. Missing tests increase the risk of regressions and make refactoring difficult.
-
-#### Evidence
-
-**File**: `tests/` directory  
-Test directory requires verification of:
-- Unit test coverage
-- Integration test coverage
-- Feature test coverage
-- Test organization
-
-#### Impact
-
-- **Likelihood**: Low (not a security issue)
-- **Impact**: Low to Medium (affects code quality and maintainability)
-- **Business Impact**: Increased bug rates, slower development velocity
-
-#### Mitigation Strategies
-
-1. **Unit Tests**
-   - Test individual methods and functions
-   - Aim for 80%+ code coverage
-   - Use mocking for dependencies
-   - Test edge cases and error conditions
-
-2. **Code Example**:
-```php
-// tests/Unit/Models/UserTest.php
-class UserTest extends TestCase
-{
-    public function test_user_can_be_created()
-    {
-        $user = User::factory()->create();
-        
-        $this->assertDatabaseHas('users', [
-            'id' => $user->id,
-            'email' => $user->email,
-        ]);
-    }
-    
-    public function test_password_is_hashed()
-    {
-        $user = User::factory()->create(['password' => 'password']);
-        
-        $this->assertTrue(Hash::check('password', $user->password));
-    }
-}
-```
-
-3. **Integration Tests**
-   - Test API endpoints
-   - Test database interactions
-   - Test authentication flows
-   - Test authorization checks
-
-4. **Code Example**:
-```php
-// tests/Feature/AuthenticationTest.php
-class AuthenticationTest extends TestCase
-{
-    public function test_user_can_register()
-    {
-        $response = $this->post('/account/process-register', [
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => 'Password123',
-            'confirm_password' => 'Password123',
-            'role' => 'student',
-        ]);
-        
-        $this->assertDatabaseHas('users', [
-            'email' => 'john@example.com',
-        ]);
-    }
-}
-```
-
-5. **Test Coverage**
-   - Use code coverage tools (PHPUnit, Xdebug)
-   - Set minimum coverage threshold (80%)
-   - Monitor coverage trends
-   - Identify untested code paths
-
----
-
-### LR-003: Missing API Documentation
-
-**Severity**: LOW  
-**Category**: Documentation  
-**Affected Components**: API endpoints, external integrations
-
-#### Risk Description
-
-If the application exposes API endpoints, documentation may be missing or incomplete. This makes integration difficult for third-party developers.
-
-#### Evidence
-
-**File**: `routes/api.php` (if present)  
-API routes require verification of:
-- Endpoint documentation
-- Request/response examples
-- Authentication requirements
-- Error responses
-
-#### Impact
-
-- **Likelihood**: Low (depends on API exposure)
-- **Impact**: Low (affects developer experience)
-- **Business Impact**: Slower integration, more support requests
-
-#### Mitigation Strategies
-
-1. **API Documentation**
-   - Use OpenAPI/Swagger for API documentation
-   - Document all endpoints with examples
-   - Document authentication methods
-   - Document error responses
-
-2. **Code Example** (using Laravel Sanctum):
-```php
-/**
- * @OA\Get(
- *     path="/api/blogs",
- *     summary="Get all blogs",
- *     tags={"Blogs"},
- *     security={{"sanctum":{}}},
- *     @OA\Response(
- *         response=200,
- *         description="List of blogs"
- *     )
- * )
- */
-public function index()
-{
-    return Blog::paginate();
-}
-```
-
-3. **Documentation Tools**
-   - Use Swagger/OpenAPI for API documentation
-   - Use Postman for API testing
-   - Generate documentation automatically from code
-   - Maintain API changelog
-
-4. **Developer Portal**
-   - Create developer documentation
-   - Provide code examples
-   - Document authentication flow
-   - Provide sandbox environment
-
----
-
-### LR-004: Missing Performance Monitoring
-
-**Severity**: LOW  
-**Category**: Operational  
-**Affected Components**: Performance monitoring, observability
-
-#### Risk Description
-
-The application lacks comprehensive performance monitoring. Missing metrics could prevent early detection of performance degradation.
-
-#### Evidence
-
-**File**: `bootstrap/app.php`  
-No explicit performance monitoring configuration visible.
-
-**File**: `config/logging.php`  
-Logging configuration exists but performance metrics may not be captured.
-
-#### Impact
-
-- **Likelihood**: Low (not a security issue)
-- **Impact**: Low (affects operational visibility)
-- **Business Impact**: Slow incident detection, poor user experience
-
-#### Mitigation Strategies
-
-1. **Application Performance Monitoring**
-   - Implement APM tool (New Relic, DataDog, Sentry)
-   - Monitor response times
-   - Monitor database query performance
-   - Monitor error rates
-
-2. **Metrics to Monitor**
-   - Page load time (target: <2 seconds)
-   - API response time (target: <500ms)
-   - Database query time (target: <100ms)
-   - Error rate (target: <0.1%)
-   - CPU usage (target: <70%)
-   - Memory usage (target: <80%)
-
-3. **Code Example** (using Sentry):
-```php
-// config/sentry.php
-'dsn' => env('SENTRY_LARAVEL_DSN'),
-'traces_sample_rate' => 0.1,
-'profiles_sample_rate' => 0.1,
-```
-
-4. **Alerting**
-   - Set up alerts for performance degradation
-   - Alert on error rate increase
-   - Alert on resource exhaustion
-   - Alert on slow queries
-
-5. **Dashboards**
-   - Create performance dashboards
-   - Monitor key metrics in real-time
-   - Track performance trends
-   - Identify bottlenecks
-
----
-
-### LR-005: Missing Content Security Policy Configuration
-
-**Severity**: LOW  
-**Category**: Security  
-**Affected Components**: HTTP headers, XSS prevention
-
-#### Risk Description
-
-While mentioned in CR-004, CSP configuration deserves specific attention as a low-priority but important security enhancement.
-
-#### Evidence
-
-**File**: `bootstrap/app.php`  
-No explicit CSP header configuration visible.
-
-#### Impact
-
-- **Likelihood**: Low (depends on XSS vulnerabilities)
-- **Impact**: Low to Medium (mitigates XSS impact)
-- **Business Impact**: Reduced XSS impact, improved security posture
-
-#### Mitigation Strategies
-
-1. **Content Security Policy**
-   - Define CSP policy for the application
-   - Start with strict policy and relax as needed
-   - Use nonce-based inline scripts
-   - Monitor CSP violations
-
-2. **Code Example**:
-```php
-// app/Http/Middleware/ContentSecurityPolicy.php
-public function handle($request, Closure $next)
-{
-    $response = $next($request);
-    
-    $csp = "default-src 'self'; " .
-           "script-src 'self' 'nonce-" . $nonce . "'; " .
-           "style-src 'self' 'unsafe-inline'; " .
-           "img-src 'self' data: https:; " .
-           "font-src 'self'; " .
-           "connect-src 'self'; " .
-           "frame-ancestors 'none'; " .
-           "base-uri 'self'; " .
-           "form-action 'self'";
-    
-    $response->header('Content-Security-Policy', $csp);
-    
-    return $response;
-}
-```
-
-3. **CSP Reporting**
-   - Implement CSP violation reporting
-   - Monitor violations for policy refinement
-   - Use report-uri or report-to directive
-   - Analyze reports for security issues
-
----
-
-## Risk Summary Matrix
-
-| Risk ID | Risk Title | Severity | Category | Status |
-|---------|-----------|----------|----------|--------|
-| CR-001 | Inadequate Input Validation and SQL Injection | CRITICAL | Security | Requires Immediate Action |
-| CR-002 | Weak Authentication and Authorization Controls | CRITICAL | Security | Requires Immediate Action |
-| CR-003 | Secrets and Credentials Exposure | CRITICAL | Security | Requires Immediate Action |
-| CR-004 | Missing CSRF and Security Headers | CRITICAL | Security | Requires Immediate Action |
-| HR-001 | Inadequate Error Handling and Information Disclosure | HIGH | Security | Requires Action |
-| HR-002 | Insufficient Data Validation and Type Safety | HIGH | Data Integrity | Requires Action |
-| HR-003 | Missing Database Integrity Constraints | HIGH | Data Integrity | Requires Action |
-| HR-004 | Inadequate Logging and Monitoring | HIGH | Operational | Requires Action |
-| HR-005 | Missing Rate Limiting and DDoS Protection | HIGH | Security | Requires Action |
-| HR-006 | Insufficient File Upload Security | HIGH | Security | Requires Action |
-| HR-007 | Missing API Authentication and Rate Limiting | HIGH | Security | Requires Action |
-| MR-001 | Outdated Dependencies and Security Vulnerabilities | MEDIUM | Dependency Management | Requires Planning |
-| MR-002 | Insufficient Input Sanitization for XSS Prevention | MEDIUM | Security | Requires Planning |
-| MR-003 | Missing Database Query Optimization | MEDIUM | Performance | Requires Planning |
-| MR-004 | Weak Password Reset Mechanism | MEDIUM | Security | Requires Planning |
-| MR-005 | Missing Pagination and Potential DoS via Large Queries | MEDIUM | Performance/Security | Requires Planning |
-| MR-006 | Insufficient Session Security Configuration | MEDIUM | Security | Requires Planning |
-| MR-007 | Missing Backup and Disaster Recovery Plan | MEDIUM | Operational | Requires Planning |
-| LR-001 | Code Organization and Maintainability | LOW | Technical Debt | Future Improvement |
-| LR-002 | Missing Unit and Integration Tests | LOW | Quality Assurance | Future Improvement |
-| LR-003 | Missing API Documentation | LOW | Documentation | Future Improvement |
-| LR-004 | Missing Performance Monitoring | LOW | Operational | Future Improvement |
-| LR-005 | Missing Content Security Policy Configuration | LOW | Security | Future Improvement |
-
----
-
-## Remediation Roadmap
-
-### Phase 1: Critical Issues (Weeks 1-2)
-
-**Priority**: Immediate action required before production deployment
-
-1. **CR-001**: Implement comprehensive input validation
-   - Add validation rules to all controllers
-   - Implement output encoding in views
-   - Add file upload security
-   - Estimated effort: 40 hours
-
-2. **CR-002**: Implement authorization policies
-   - Create Laravel Policies for all models
-   - Add authorization checks to controllers
-   - Implement audit logging
-   - Estimated effort: 30 hours
-
-3. **CR-003**: Secure secrets management
-   - Remove hardcoded credentials
-   - Implement environment-based configuration
-   - Set up secrets management system
-   - Estimated effort: 20 hours
-
-4. **CR-004**: Implement security headers
-   - Add CSRF token to all forms
-   - Implement security header middleware
-   - Configure HTTPS enforcement
-   - Estimated effort: 15 hours
-
-**Total Phase 1 Effort**: ~105 hours (2-3 weeks with team)
-
-### Phase 2: High-Priority Issues (Weeks 3-4)
-
-**Priority**: Address before production deployment
-
-1. **HR-001**: Implement error handling
-   - Create custom error pages
-   - Implement structured logging
-   - Disable debug mode in production
-   - Estimated effort: 20 hours
-
-2. **HR-002**: Add model-level validation
-   - Implement validation in models
-   - Add attribute casting
-   - Implement mutators/accessors
-   - Estimated effort: 25 hours
-
-3. **HR-003**: Add database constraints
-   - Add foreign keys to migrations
-   - Add unique constraints
-   - Add NOT NULL constraints
-   - Estimated effort: 30 hours
-
-4. **HR-004**: Implement logging and monitoring
-   - Set up structured logging
-   - Implement audit logging
-   - Set up monitoring alerts
-   - Estimated effort: 35 hours
-
-5. **HR-005**: Implement rate limiting
-   - Add throttle middleware to sensitive endpoints
-   - Implement custom rate limiting
-   - Set up DDoS protection
-   - Estimated effort: 20 hours
-
-6. **HR-006**: Implement file upload security
-   - Add file validation
-   - Implement malware scanning
-   - Secure file storage
-   - Estimated effort: 25 hours
-
-**Total Phase 2 Effort**: ~155 hours (3-4 weeks with team)
-
-### Phase 3: Medium-Priority Issues (Weeks 5-8)
-
-**Priority**: Address within 1-2 months
-
-1. **MR-001**: Update dependencies
-   - Run `composer audit` and `npm audit`
-   - Update vulnerable packages
-   - Test updates in staging
-   - Estimated effort: 20 hours
-
-2. **MR-002**: Implement XSS prevention
-   - Audit views for unsafe output
-   - Implement HTML purification
-   - Add CSP headers
-   - Estimated effort: 25 hours
-
-3. **MR-003**: Optimize database queries
-   - Identify N+1 queries
-   - Implement eager loading
-   - Add database indexes
-   - Estimated effort: 30 hours
-
-4. **MR-004**: Improve password reset
-   - Implement secure token generation
-   - Add rate limiting
-   - Implement email verification
-   - Estimated effort: 20 hours
-
-5. **MR-005**: Implement pagination
-   - Add pagination to all listing endpoints
-   - Implement query limits
-   - Test with large datasets
-   - Estimated effort: 25 hours
-
-6. **MR-006**: Improve session security
-   - Configure secure cookies
-   - Implement session timeout
-   - Add session encryption
-   - Estimated effort: 15 hours
-
-7. **MR-007**: Implement backup strategy
-   - Set up automated backups
-   - Test backup restoration
-   - Document recovery procedures
-   - Estimated effort: 30 hours
-
-**Total Phase 3 Effort**: ~165 hours (4-5 weeks with team)
-
-### Phase 4: Low-Priority Issues (Weeks 9-12)
-
-**Priority**: Address within 2-3 months
-
-1. **LR-001**: Improve code organization
-   - Extract service classes
-   - Implement repository pattern
-   - Add documentation
-   - Estimated effort: 40 hours
-
-2. **LR-002**: Implement tests
-   - Write unit tests
-   - Write integration tests
-   - Achieve 80%+ coverage
-   - Estimated effort: 60 hours
-
-3. **LR-003**: Create API documentation
-   - Document API endpoints
-   - Create Swagger/OpenAPI spec
-   - Create developer portal
-   - Estimated effort: 30 hours
-
-4. **LR-004**: Implement performance monitoring
-   - Set up APM tool
-   - Create dashboards
-   - Set up alerting
-   - Estimated effort: 25 hours
-
-5. **LR-005**: Implement CSP
-   - Define CSP policy
-   - Implement CSP headers
-   - Monitor violations
-   - Estimated effort: 15 hours
-
-**Total Phase 4 Effort**: ~170 hours (4-5 weeks with team)
-
----
-
-## Implementation Checklist
-
-### Pre-Deployment Checklist
-
-- [ ] All critical risks (CR-001 to CR-004) addressed
-- [ ] All high-priority risks (HR-001 to HR-007) addressed
-- [ ] Security headers configured
-- [ ] HTTPS enforced
-- [ ] Debug mode disabled in production
-- [ ] Database backups tested
-- [ ] Monitoring and alerting configured
-- [ ] Incident response plan documented
-- [ ] Security testing completed
-- [ ] Penetration testing completed (recommended)
-
-### Post-Deployment Checklist
-
-- [ ] Monitor error rates and performance
-- [ ] Review logs for security issues
-- [ ] Verify backup restoration
-- [ ] Test incident response procedures
-- [ ] Review monitoring alerts
-- [ ] Conduct security audit
-- [ ] Update documentation
-- [ ] Plan for medium-priority issues
-
----
-
-## Conclusion
-
-The PlusPoint EDU application has identified 23 risks across multiple categories. Four critical security risks require immediate attention before production deployment. These include inadequate input validation, weak authentication controls, secrets exposure, and missing security headers.
-
-The recommended remediation roadmap spans 12 weeks and addresses risks in priority order. Phase 1 (critical issues) should be completed within 2-3 weeks, Phase 2 (high-priority issues) within 4 weeks, followed by medium and low-priority issues.
-
-Regular security reviews, dependency updates, and monitoring should be implemented as ongoing practices to maintain security posture and prevent future vulnerabilities.
-
----
-
-## Document Control
-
-**Document Version**: 1.0  
-**Last Updated**: 2024  
-**Next Review Date**: 2024 (quarterly)  
-**Responsible Party**: Security Team / Development Lead  
-**Distribution**: Development Team, Security Team, Management
-
----
-
-## Appendix: Tools and Resources
-
-### Security Testing Tools
-
-- **OWASP ZAP**: Web application security scanner
-- **Burp Suite**: Web vulnerability scanner
-- **PHPStan**: Static analysis tool
-- **Psalm**: Static analysis tool
-- **PHP-CS-Fixer**: Code style checker
-- **Composer Audit**: Dependency vulnerability scanner
-- **npm Audit**: JavaScript dependency vulnerability scanner
-
-### Monitoring and Logging Tools
-
-- **Sentry**: Error tracking and monitoring
-- **New Relic**: Application performance monitoring
-- **DataDog**: Infrastructure and application monitoring
-- **ELK Stack**: Logging and analysis
-- **Prometheus**: Metrics collection
-- **Grafana**: Metrics visualization
-
-### Documentation Tools
-
-- **Swagger/OpenAPI**: API documentation
-- **Postman**: API testing and documentation
-- **PHPDocumentor**: PHP documentation generator
-- **MkDocs**: Documentation generator
-
-### References
-
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Laravel Security Documentation](https://laravel.com/docs/security)
-- [CWE/SANS Top 25](https://cwe.mitre.org/top25/)
-- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
+*End of risk document. All findings above are derived from direct inspection of the source files listed. No risks have been invented or extrapolated beyond what the code demonstrates.*
