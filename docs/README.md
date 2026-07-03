@@ -72,8 +72,8 @@ Security vulnerabilities, performance bottlenecks, technical debt, scalability l
 
 **Core:**
 - Python 3.x (backend engine)
-- Next.js / React (web dashboard)
-- WebSocket & MQTT (real-time communication)
+- Vanilla HTML / CSS / JavaScript (mirror PWA, security dashboard, website — see `website/`, `security_pwa/`, `lib/redact.mjs`)
+- WebSocket (`websocket-server`) & MQTT (`paho-mqtt`) for real-time communication
 
 **AI & ML:**
 - MediaPipe (hand tracking, pose estimation)
