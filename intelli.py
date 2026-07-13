@@ -322,7 +322,7 @@ def unified_vision_thread():
                     probs = model.predict_proba(current_embedding)[0]
                     best_idx = np.argmax(probs)
                     
-                    if probs[best_idx] > 0.60:
+                    if probs[best_idx] > 0.75:
                         new_user = profiles.get("id_to_name", {}).get(int(model.classes_[best_idx]), "Unknown")
                     else:
                         new_user = "Unknown"
